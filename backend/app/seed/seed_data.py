@@ -427,9 +427,21 @@ def main() -> None:
         seed_sample_violation_cases(db, wards, classes, vehicles)
         seed_sample_corruption_reports(db)
         print("Seed complete.")
-        print(f"Demo official accounts (password: {DEV_PASSWORD}):")
+        print(f"\nDemo official accounts (password: {DEV_PASSWORD}):")
         for email, _, role, _ in USERS:
             print(f"  {email}  [{role.value}]")
+
+        # A tracking token is tied to no identity, so there is no way to look one up by anything
+        # else. Printing the seeded ones is the only way to demo the citizen tracking page
+        # without first submitting a fresh report.
+        print("\nTracking codes for the seeded reports (paste into 'Track a report'):")
+        seeded = db.execute(
+            select(InfrastructureIssue, IssueCategory)
+            .join(IssueCategory, IssueCategory.id == InfrastructureIssue.category_id)
+            .order_by(InfrastructureIssue.created_at)
+        ).all()
+        for issue, category in seeded:
+            print(f"  {issue.tracking_token}  {issue.status.value:<12} {category.label}")
     finally:
         db.close()
 
