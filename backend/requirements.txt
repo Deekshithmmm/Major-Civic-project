@@ -1,0 +1,23 @@
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+sqlalchemy==2.0.36
+geoalchemy2==0.16.0
+psycopg[binary]==3.2.3
+alembic==1.14.0
+pydantic==2.10.3
+# Required by pydantic's EmailStr (used on the officer login schema).
+email-validator==2.2.0
+pydantic-settings==2.6.1
+python-jose[cryptography]==3.3.0
+passlib==1.7.4
+# Pinned <4.1: passlib 1.7.4 reads bcrypt.__about__, which bcrypt 4.1 removed.
+bcrypt==4.0.1
+python-multipart==0.0.19
+boto3==1.35.74
+shapely==2.0.6
+redis==5.2.1
+Pillow==11.0.0
+python-dotenv==1.0.1
+opencv-python-headless==4.10.0.84
+numpy==1.26.4
+

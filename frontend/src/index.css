@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 antialiased;
+  }
+
+  /* WCAG AA: a visible, high-contrast focus ring on every interactive element. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-offset-2 ring-civic-600;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-md bg-civic-600 px-4 py-2.5 text-white
+           font-medium hover:bg-civic-700 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-md border border-slate-300 bg-white
+           px-4 py-2.5 font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-50;
+  }
+
+  .field-label {
+    @apply block text-sm font-medium text-slate-800 mb-1;
+  }
+
+  .field-input {
+    @apply w-full rounded-md border border-slate-300 px-3 py-2.5 text-slate-900
+           placeholder:text-slate-500 focus:border-civic-600;
+  }
+
+  .card {
+    @apply rounded-lg border border-slate-200 bg-white p-4 shadow-sm;
+  }
+}
+
+.leaflet-container {
+  @apply h-full w-full rounded-md;
+}
