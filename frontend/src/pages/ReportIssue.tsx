@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import LocationPicker from '../components/LocationPicker'
 import {
+  ApiError,
   apiGet,
   apiUpload,
   compressImage,
@@ -22,6 +23,8 @@ export default function ReportIssue() {
   const [point, setPoint] = useState<LatLng | null>(null)
 
   const [progress, setProgress] = useState<number | null>(null)
+  // Upload done, waiting on the server: face blurring can take minutes for a video.
+  const processing = progress === 100
   const [result, setResult] = useState<IssueCreateResult | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
@@ -51,10 +54,19 @@ export default function ReportIssue() {
       if (phone) form.append('phone_number', phone)
       form.append('file', prepared)
 
-      const created = await apiUpload<IssueCreateResult>('/api/infra/issues', form, setProgress)
+      // Videos are blurred frame by frame on the server, so they get far longer to process.
+      const processingTimeoutMs = prepared.type.startsWith('video/') ? 10 * 60_000 : 2 * 60_000
+      const created = await apiUpload<IssueCreateResult>(
+        '/api/infra/issues',
+        form,
+        setProgress,
+        processingTimeoutMs,
+      )
       setResult(created)
-    } catch {
-      setError(t('errorGeneric'))
+    } catch (err) {
+      if (err instanceof ApiError && err.kind === 'timeout') setError(t('errorTimeout'))
+      else if (err instanceof ApiError && err.kind === 'network') setError(t('errorNetwork'))
+      else setError(t('errorGeneric'))
     } finally {
       setProgress(null)
     }
@@ -180,14 +192,23 @@ export default function ReportIssue() {
             aria-valuenow={progress}
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-label={t('submitting')}
+            aria-label={processing ? t('processing') : t('submitting')}
             className="h-2 w-full overflow-hidden rounded-full bg-slate-200"
           >
-            <div className="h-full bg-civic-600 transition-all" style={{ width: `${progress}%` }} />
+            <div
+              className={`h-full bg-civic-600 transition-all ${processing ? 'animate-pulse' : ''}`}
+              style={{ width: `${progress}%` }}
+            />
           </div>
-          <p className="mt-1 text-sm text-slate-600">
-            {t('submitting')} {progress}%
-          </p>
+          {processing ? (
+            <p className="mt-1 text-sm text-slate-700" aria-live="polite">
+              <span className="font-medium">{t('processing')}</span> {t('processingHelp')}
+            </p>
+          ) : (
+            <p className="mt-1 text-sm text-slate-600">
+              {t('submitting')} {progress}%
+            </p>
+          )}
         </div>
       )}
 
@@ -198,7 +219,7 @@ export default function ReportIssue() {
       )}
 
       <button type="submit" className="btn-primary" disabled={!file || !point || progress !== null}>
-        {progress !== null ? t('submitting') : t('submit')}
+        {progress === null ? t('submit') : processing ? t('processing') : t('submitting')}
       </button>
     </form>
   )

@@ -17,11 +17,15 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
 
+export type ApiErrorKind = 'http' | 'network' | 'timeout'
+
 export class ApiError extends Error {
   status: number
-  constructor(status: number, message: string) {
+  kind: ApiErrorKind
+  constructor(status: number, message: string, kind: ApiErrorKind = 'http') {
     super(message)
     this.status = status
+    this.kind = kind
   }
 }
 
@@ -57,14 +61,20 @@ export async function apiPost<T>(path: string, body?: unknown): Promise<T> {
  * Multipart upload with real progress events. Uses XMLHttpRequest because fetch() still has no
  * upload-progress API - the spec requires showing real progress on a 3G connection, and a fake
  * indeterminate spinner is not that.
+ *
+ * `processingTimeoutMs` only starts once the upload has finished. A slow 3G upload must never be
+ * cut off, but a server that takes the file and then never answers must not leave the form stuck
+ * on "100%" forever either.
  */
 export function apiUpload<T>(
   path: string,
   form: FormData,
   onProgress?: (percent: number) => void,
+  processingTimeoutMs = 2 * 60_000,
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest()
+    let processingTimer: number | undefined
     xhr.open('POST', path)
 
     const token = getToken()
@@ -75,6 +85,17 @@ export function apiUpload<T>(
         onProgress(Math.round((e.loaded / e.total) * 100))
       }
     })
+
+    xhr.upload.addEventListener('load', () => {
+      onProgress?.(100)
+      processingTimer = window.setTimeout(() => {
+        reject(new ApiError(0, 'Server did not respond after upload', 'timeout'))
+        xhr.abort()
+      }, processingTimeoutMs)
+    })
+
+    xhr.addEventListener('loadend', () => window.clearTimeout(processingTimer))
+    xhr.addEventListener('abort', () => reject(new ApiError(0, 'Upload aborted', 'network')))
 
     xhr.addEventListener('load', () => {
       if (xhr.status >= 200 && xhr.status < 300) {
@@ -95,7 +116,7 @@ export function apiUpload<T>(
       }
     })
 
-    xhr.addEventListener('error', () => reject(new ApiError(0, 'Network error')))
+    xhr.addEventListener('error', () => reject(new ApiError(0, 'Network error', 'network')))
     xhr.send(form)
   })
 }

@@ -50,7 +50,7 @@ def list_routing_rules(db: Session = Depends(get_db)):
 
 
 @router.post("/reports", response_model=ReportCreateResponse, status_code=status.HTTP_201_CREATED)
-async def submit_report(
+def submit_report(
     accused_department: str = Form(...),
     accused_designation: str = Form(...),
     accused_party_type: AccusedPartyType = Form(...),
@@ -67,7 +67,7 @@ async def submit_report(
     if content_type not in IMAGE_CONTENT_TYPES | VIDEO_CONTENT_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported file type")
 
-    data = await file.read()
+    data = file.file.read()
     processed = process_and_store(data, content_type, key_prefix="module2")
 
     tracking_token = secrets.token_urlsafe(24)

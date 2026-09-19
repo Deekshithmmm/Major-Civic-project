@@ -174,6 +174,13 @@ Listed explicitly because several of these look done from the outside and are no
   smoke test — but no one has actually clicked through the report flow, the map, or the officer
   dashboard. Do that before demoing.
 - **Virus scanning is a no-op stub** (`virus_scan()` in `services/media_pipeline.py`).
+- **Uploads are processed inside the request**, so the citizen waits while faces are blurred:
+  about 2s for a browser-compressed photo, but 25–45s for a 10-second 720p video, because video
+  is blurred frame by frame. The upload endpoints are plain `def` so FastAPI runs them in worker
+  threads (API stays responsive; measured `/health` at ≤0.4s during a video upload, versus
+  frozen for the full duration when they were `async def`), and the form shows a processing
+  state with a timeout instead of hanging. The spec's intended design is to hand the file to a
+  Redis-backed worker and return immediately; that isn't built.
 - **The SLA sweep is lazy**, triggered when the public board or officer queue is read, rather
   than running on a schedule. Redis is in the compose file for a Celery/RQ worker that doesn't
   exist yet. Escalation to the tier-2 department on breach is recorded in config but not

@@ -57,6 +57,22 @@ const STRINGS = {
   },
   submit: { en: 'Submit report', hi: 'शिकायत भेजें', kn: 'ದೂರು ಸಲ್ಲಿಸಿ' },
   submitting: { en: 'Submitting…', hi: 'भेजा जा रहा है…', kn: 'ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ…' },
+  processing: { en: 'Processing…', hi: 'प्रोसेस किया जा रहा है…', kn: 'ಪ್ರಕ್ರಿಯೆಗೊಳಿಸಲಾಗುತ್ತಿದೆ…' },
+  processingHelp: {
+    en: 'Uploaded. Faces are being blurred and location data removed — videos can take a few minutes. Keep this page open.',
+    hi: 'अपलोड हो गया। चेहरे धुंधले किए जा रहे हैं और स्थान डेटा हटाया जा रहा है — वीडियो में कुछ मिनट लग सकते हैं। यह पेज खुला रखें।',
+    kn: 'ಅಪ್‌ಲೋಡ್ ಆಗಿದೆ. ಮುಖಗಳನ್ನು ಮಸುಕುಗೊಳಿಸಲಾಗುತ್ತಿದೆ ಮತ್ತು ಸ್ಥಳ ಡೇಟಾ ತೆಗೆದುಹಾಕಲಾಗುತ್ತಿದೆ — ವೀಡಿಯೊಗಳಿಗೆ ಕೆಲವು ನಿಮಿಷಗಳು ಬೇಕಾಗಬಹುದು. ಈ ಪುಟವನ್ನು ತೆರೆದಿಡಿ.',
+  },
+  errorTimeout: {
+    en: 'Your file uploaded, but the server stopped responding. Please try again — a repeat report from the same spot is merged with the first, not duplicated.',
+    hi: 'आपकी फ़ाइल अपलोड हो गई, लेकिन सर्वर ने जवाब देना बंद कर दिया। कृपया पुनः प्रयास करें — उसी स्थान से दोबारा की गई शिकायत पहली शिकायत में जोड़ दी जाती है, दोहराई नहीं जाती।',
+    kn: 'ನಿಮ್ಮ ಫೈಲ್ ಅಪ್‌ಲೋಡ್ ಆಗಿದೆ, ಆದರೆ ಸರ್ವರ್ ಪ್ರತಿಕ್ರಿಯಿಸುವುದನ್ನು ನಿಲ್ಲಿಸಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ — ಅದೇ ಸ್ಥಳದಿಂದ ಮತ್ತೆ ಮಾಡಿದ ದೂರನ್ನು ಮೊದಲನೆಯದರೊಂದಿಗೆ ಸೇರಿಸಲಾಗುತ್ತದೆ, ನಕಲು ಮಾಡಲಾಗುವುದಿಲ್ಲ.',
+  },
+  errorNetwork: {
+    en: "Couldn't reach the server. Check your connection and try again.",
+    hi: 'सर्वर से संपर्क नहीं हो सका। अपना कनेक्शन जांचें और पुनः प्रयास करें।',
+    kn: 'ಸರ್ವರ್ ತಲುಪಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ. ನಿಮ್ಮ ಸಂಪರ್ಕ ಪರಿಶೀಲಿಸಿ ಮತ್ತು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.',
+  },
   submitted: { en: 'Report received', hi: 'शिकायत प्राप्त हुई', kn: 'ದೂರು ಸ್ವೀಕರಿಸಲಾಗಿದೆ' },
   trackingToken: { en: 'Your tracking code', hi: 'आपका ट्रैकिंग कोड', kn: 'ನಿಮ್ಮ ಟ್ರ್ಯಾಕಿಂಗ್ ಕೋಡ್' },
   // Neutral wording: on the public board the report belongs to someone else, so "your" is wrong.

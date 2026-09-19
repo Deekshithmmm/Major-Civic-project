@@ -69,7 +69,7 @@ def list_categories(db: Session = Depends(get_db)):
 
 
 @router.post("/issues", response_model=IssueCreateResponse, status_code=status.HTTP_201_CREATED)
-async def create_issue(
+def create_issue(
     category_slug: str = Form(...),
     description: str | None = Form(None),
     lat: float = Form(...),
@@ -91,7 +91,7 @@ async def create_issue(
     if content_type not in IMAGE_CONTENT_TYPES | VIDEO_CONTENT_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported file type")
 
-    data = await file.read()
+    data = file.file.read()
     processed = process_and_store(data, content_type, key_prefix="module3")
 
     point_wkt = f"SRID=4326;POINT({lng} {lat})"
@@ -305,7 +305,7 @@ def start_issue(issue_id: uuid.UUID, user: User = Depends(officer_roles), db: Se
 
 
 @router.post("/officer/issues/{issue_id}/resolve", response_model=IssuePublicResponse)
-async def resolve_issue(
+def resolve_issue(
     issue_id: uuid.UUID,
     note: str | None = Form(None),
     proof_file: UploadFile = File(...),
@@ -321,7 +321,7 @@ async def resolve_issue(
     if content_type not in IMAGE_CONTENT_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Proof must be a photo")
 
-    data = await proof_file.read()
+    data = proof_file.file.read()
     processed = process_and_store(data, content_type, key_prefix="module3/resolution_proof")
 
     issue.resolution_proof_media_id = processed.media_id

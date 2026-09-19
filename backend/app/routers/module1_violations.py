@@ -68,7 +68,7 @@ def list_violation_classes(db: Session = Depends(get_db)):
 
 
 @router.post("/citizen/upload", response_model=ViolationCaseResponse, status_code=status.HTTP_201_CREATED)
-async def citizen_upload(
+def citizen_upload(
     violation_class_slug: str = Form(...),
     lat: float = Form(...),
     lng: float = Form(...),
@@ -93,7 +93,7 @@ async def citizen_upload(
     if content_type not in IMAGE_CONTENT_TYPES | VIDEO_CONTENT_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported file type")
 
-    data = await file.read()
+    data = file.file.read()
     processed = process_and_store(data, content_type, key_prefix="module1/citizen")
 
     case = ViolationCase(

@@ -18,6 +18,7 @@ it writes to the segregated evidence vault bucket instead of general media stora
 
 import io
 import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,7 +28,17 @@ from PIL import Image
 
 from app.services.storage import put_object
 
-_FACE_CASCADE = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+_thread_local = threading.local()
+
+
+def _face_cascade() -> cv2.CascadeClassifier:
+    # One classifier per thread: uploads run concurrently in FastAPI's threadpool, and sharing a
+    # single CascadeClassifier across threads is not documented as safe by OpenCV.
+    cascade = getattr(_thread_local, "cascade", None)
+    if cascade is None:
+        cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+        _thread_local.cascade = cascade
+    return cascade
 
 IMAGE_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
 VIDEO_CONTENT_TYPES = {"video/mp4", "video/webm", "video/quicktime"}
@@ -51,7 +62,7 @@ def virus_scan(data: bytes) -> None:
 
 def _blur_faces_in_frame(frame: np.ndarray) -> np.ndarray:
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    faces = _FACE_CASCADE.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(24, 24))
+    faces = _face_cascade().detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(24, 24))
     for (x, y, w, h) in faces:
         # Pad the box slightly so the blur covers hairline/jaw, not just the detector's tight box.
         pad_x, pad_y = int(w * 0.15), int(h * 0.15)
@@ -120,7 +131,13 @@ def _strip_and_blur_video(data: bytes) -> tuple[bytes, bytes]:
 
 
 def process_and_store(data: bytes, content_type: str, key_prefix: str = "media") -> ProcessedMedia:
-    """Runs the shared pipeline and returns opaque media IDs for the processed file + thumbnail."""
+    """
+    Runs the shared pipeline and returns opaque media IDs for the processed file + thumbnail.
+
+    Blocking and CPU-heavy (a 10s 720p video takes ~25s). Call it only from plain `def`
+    endpoints, which FastAPI runs in a worker thread. From an `async def` endpoint it stalls the
+    event loop and freezes every other request - including /health - until it returns.
+    """
     virus_scan(data)
 
     if content_type in IMAGE_CONTENT_TYPES:
