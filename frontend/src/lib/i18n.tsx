@@ -59,6 +59,8 @@ const STRINGS = {
   submitting: { en: 'Submitting…', hi: 'भेजा जा रहा है…', kn: 'ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ…' },
   submitted: { en: 'Report received', hi: 'शिकायत प्राप्त हुई', kn: 'ದೂರು ಸ್ವೀಕರಿಸಲಾಗಿದೆ' },
   trackingToken: { en: 'Your tracking code', hi: 'आपका ट्रैकिंग कोड', kn: 'ನಿಮ್ಮ ಟ್ರ್ಯಾಕಿಂಗ್ ಕೋಡ್' },
+  // Neutral wording: on the public board the report belongs to someone else, so "your" is wrong.
+  trackingCodeLabel: { en: 'Tracking code', hi: 'ट्रैकिंग कोड', kn: 'ಟ್ರ್ಯಾಕಿಂಗ್ ಕೋಡ್' },
   trackingHelp: {
     en: 'Save this code. It is the only way to check your report later, and it is linked to no identity.',
     hi: 'यह कोड सहेजें। बाद में अपनी शिकायत देखने का यही एकमात्र तरीका है, और यह किसी पहचान से जुड़ा नहीं है।',

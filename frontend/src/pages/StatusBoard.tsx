@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 
 import StatusBadge from '../components/StatusBadge'
+import TrackingCode from '../components/TrackingCode'
 import { DEMO_CITY_CENTER, statusMarker } from '../components/mapIcons'
 import { apiGet, type Issue, type IssueStatus } from '../lib/api'
 import { useI18n } from '../lib/i18n'
@@ -107,6 +108,9 @@ export default function StatusBoard() {
                       </>
                     )}
                   </p>
+                  <div className="mt-2">
+                    <TrackingCode token={issue.tracking_token} compact />
+                  </div>
                 </div>
                 <StatusBadge status={issue.status} />
               </div>

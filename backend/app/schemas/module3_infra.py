@@ -44,6 +44,16 @@ class IssuePublicResponse(BaseModel):
     # and unlike Module 4 evidence they are meant to be publicly visible.
     media_id: str | None = None
 
+    # Public on the Module 3 board so a citizen who lost their code can find their report. This
+    # is only safe because the token grants no access here that GET /api/infra/issues/{id}
+    # doesn't already give anonymously - it is a lookup handle, not a credential.
+    #
+    # DO NOT gate any state-changing action on this token (withdrawing a report, editing it,
+    # adding follow-up) while it is published, and DO NOT copy this field onto Module 2 or
+    # Module 4 responses: there the token IS the reporter's only protected handle, and
+    # publishing it would expose whistleblowers.
+    tracking_token: str
+
 
 class IssueStatusHistoryItem(BaseModel):
     status: IssueStatus

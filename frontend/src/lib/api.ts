@@ -155,6 +155,7 @@ export type Issue = {
   sla_deadline: string
   created_at: string
   media_id: string | null
+  tracking_token: string
 }
 
 export type IssueDetail = Issue & {

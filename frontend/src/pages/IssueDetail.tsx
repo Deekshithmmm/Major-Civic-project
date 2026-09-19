@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import StatusBadge from '../components/StatusBadge'
+import TrackingCode from '../components/TrackingCode'
 import { apiGet, type IssueDetail as IssueDetailType, type ShareableCard } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 
@@ -63,6 +64,8 @@ export default function IssueDetail() {
           </dd>
         </div>
       </dl>
+
+      <TrackingCode token={issue.tracking_token} />
 
       {issue.resolution_proof_media_id && (
         <figure>

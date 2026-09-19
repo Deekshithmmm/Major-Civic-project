@@ -59,6 +59,7 @@ def _issue_to_public(issue: InfrastructureIssue) -> IssuePublicResponse:
         sla_deadline=issue.sla_deadline,
         created_at=issue.created_at,
         media_id=issue.media_id,
+        tracking_token=issue.tracking_token,
     )
 
 
