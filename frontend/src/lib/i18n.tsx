@@ -39,9 +39,9 @@ const STRINGS = {
   description: { en: 'Description (optional)', hi: 'विवरण (वैकल्पिक)', kn: 'ವಿವರಣೆ (ಐಚ್ಛಿಕ)' },
   photo: { en: 'Photo or video', hi: 'फ़ोटो या वीडियो', kn: 'ಫೋಟೋ ಅಥವಾ ವೀಡಿಯೊ' },
   photoHelp: {
-    en: 'Faces are blurred and location metadata is stripped before your file is stored.',
-    hi: 'आपकी फ़ाइल संग्रहीत होने से पहले चेहरे धुंधले किए जाते हैं और स्थान मेटाडेटा हटाया जाता है।',
-    kn: 'ನಿಮ್ಮ ಫೈಲ್ ಸಂಗ್ರಹಿಸುವ ಮೊದಲು ಮುಖಗಳನ್ನು ಮಸುಕುಗೊಳಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ಸ್ಥಳ ಮೆಟಾಡೇಟಾ ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ.',
+    en: 'Location data is removed before your file is stored, and sound is removed from videos. Faces are blurred in photos, but not in videos.',
+    hi: 'आपकी फ़ाइल संग्रहीत होने से पहले स्थान डेटा हटा दिया जाता है, और वीडियो से आवाज़ हटा दी जाती है। फ़ोटो में चेहरे धुंधले किए जाते हैं, लेकिन वीडियो में नहीं।',
+    kn: 'ನಿಮ್ಮ ಫೈಲ್ ಸಂಗ್ರಹಿಸುವ ಮೊದಲು ಸ್ಥಳ ಡೇಟಾವನ್ನು ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ, ಮತ್ತು ವೀಡಿಯೊಗಳಿಂದ ಧ್ವನಿಯನ್ನು ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ. ಫೋಟೋಗಳಲ್ಲಿ ಮುಖಗಳನ್ನು ಮಸುಕುಗೊಳಿಸಲಾಗುತ್ತದೆ, ಆದರೆ ವೀಡಿಯೊಗಳಲ್ಲಿ ಅಲ್ಲ.',
   },
   location: { en: 'Location', hi: 'स्थान', kn: 'ಸ್ಥಳ' },
   locationHelp: {
@@ -59,9 +59,9 @@ const STRINGS = {
   submitting: { en: 'Submitting…', hi: 'भेजा जा रहा है…', kn: 'ಸಲ್ಲಿಸಲಾಗುತ್ತಿದೆ…' },
   processing: { en: 'Processing…', hi: 'प्रोसेस किया जा रहा है…', kn: 'ಪ್ರಕ್ರಿಯೆಗೊಳಿಸಲಾಗುತ್ತಿದೆ…' },
   processingHelp: {
-    en: 'Uploaded. Faces are being blurred and location data removed — videos can take a few minutes. Keep this page open.',
-    hi: 'अपलोड हो गया। चेहरे धुंधले किए जा रहे हैं और स्थान डेटा हटाया जा रहा है — वीडियो में कुछ मिनट लग सकते हैं। यह पेज खुला रखें।',
-    kn: 'ಅಪ್‌ಲೋಡ್ ಆಗಿದೆ. ಮುಖಗಳನ್ನು ಮಸುಕುಗೊಳಿಸಲಾಗುತ್ತಿದೆ ಮತ್ತು ಸ್ಥಳ ಡೇಟಾ ತೆಗೆದುಹಾಕಲಾಗುತ್ತಿದೆ — ವೀಡಿಯೊಗಳಿಗೆ ಕೆಲವು ನಿಮಿಷಗಳು ಬೇಕಾಗಬಹುದು. ಈ ಪುಟವನ್ನು ತೆರೆದಿಡಿ.',
+    en: 'Uploaded. Removing location data from your file — this takes a few seconds.',
+    hi: 'अपलोड हो गया। आपकी फ़ाइल से स्थान डेटा हटाया जा रहा है — इसमें कुछ सेकंड लगते हैं।',
+    kn: 'ಅಪ್‌ಲೋಡ್ ಆಗಿದೆ. ನಿಮ್ಮ ಫೈಲ್‌ನಿಂದ ಸ್ಥಳ ಡೇಟಾವನ್ನು ತೆಗೆದುಹಾಕಲಾಗುತ್ತಿದೆ — ಇದಕ್ಕೆ ಕೆಲವು ಸೆಕೆಂಡುಗಳು ಬೇಕು.',
   },
   errorTimeout: {
     en: 'Your file uploaded, but the server stopped responding. Please try again — a repeat report from the same spot is merged with the first, not duplicated.',

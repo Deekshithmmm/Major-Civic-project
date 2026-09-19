@@ -2,27 +2,35 @@
 Shared media ingestion pipeline (spec 2.6): the same stages run for Modules 1-3 so privacy
 handling is implemented once and cannot drift between modules.
 
-    upload -> virus scan -> metadata/EXIF strip -> face detect + blur (irreversible on the
-    stored copy) -> thumbnail extraction -> write to object storage -> return opaque media ID
+    photo: virus scan -> EXIF strip -> face detect + blur -> thumbnail -> object storage
+    video: virus scan -> metadata strip + audio dropped (stream copy) -> thumbnail -> storage
+
+Videos are deliberately NOT face-blurred. The spec asks for it, but blurring every frame took
+25-45s for a 10-second clip, and the product decision was speed. Location metadata is still
+stripped from video: that, not the blur, is what keeps a report anonymous, and it costs well
+under a second.
 
 Virus scanning is stubbed (no ClamAV wired up in this dev build - see `virus_scan()` below);
-everything else is real. Face blur uses OpenCV's Haar cascade frontal-face detector, which is
-good enough for a demo/hackathon build but is not a production-grade detector - a real
+everything else is real. Photo face blur uses OpenCV's Haar cascade frontal-face detector, which
+is good enough for a demo/hackathon build but is not a production-grade detector - a real
 deployment should swap it for a proper model (e.g. a small YOLO-face or RetinaFace) behind this
 same function signature.
 
-Module 4 (not implemented here - see models/module4_emergency.py) differs in two ways this
-module does NOT do: it hashes the original file BEFORE any processing for chain of custody, and
-it writes to the segregated evidence vault bucket instead of general media storage.
+Module 4 (not implemented here - see models/module4_emergency.py) must NOT reuse this pipeline
+as-is: it hashes the original file BEFORE any processing for chain of custody, writes to the
+segregated evidence vault, and - since this pipeline no longer blurs video - it needs its own
+irreversible blur for sexual-offence footage, which the spec makes mandatory at ingestion.
 """
 
 import io
+import subprocess
 import tempfile
 import threading
 from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
+import imageio_ffmpeg
 import numpy as np
 from PIL import Image
 
@@ -95,62 +103,84 @@ def _strip_and_blur_image(data: bytes) -> tuple[bytes, bytes]:
     return full_buf.getvalue(), thumb_buf.getvalue()
 
 
-def _strip_and_blur_video(data: bytes) -> tuple[bytes, bytes]:
-    """Returns (blurred_mp4_bytes, thumbnail_jpeg_bytes) using an OpenCV frame-by-frame pass."""
+_FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
+
+# Keep only the first video stream: audio is dropped (a reporter's own voice identifies them) and
+# so are data tracks, which on iPhones carry location and device info. Then drop all container,
+# stream and chapter metadata - that is where phones put GPS coordinates and make/model.
+_STRIP_ARGS = ["-map", "0:v:0", "-map_metadata", "-1", "-map_metadata:s", "-1", "-map_chapters", "-1"]
+
+
+def _run_ffmpeg(*args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        [_FFMPEG, "-hide_banner", "-loglevel", "error", "-y", *args],
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+
+
+def _strip_video_metadata(data: bytes, content_type: str) -> tuple[bytes, str, bytes]:
+    """
+    Returns (video_bytes, stored_content_type, thumbnail_jpeg_bytes).
+
+    The video stream is copied, not re-encoded, so this takes well under a second. Faces are
+    deliberately NOT blurred (see module docstring). Falls back to an H.264 re-encode only when
+    the source codec can't be copied into the output container.
+    """
+    suffix = {"video/webm": ".webm", "video/quicktime": ".mov"}.get(content_type, ".mp4")
     with tempfile.TemporaryDirectory() as tmp:
-        in_path = Path(tmp) / "in.mp4"
-        out_path = Path(tmp) / "out.mp4"
-        in_path.write_bytes(data)
+        src = Path(tmp) / f"in{suffix}"
+        src.write_bytes(data)
 
-        cap = cv2.VideoCapture(str(in_path))
-        fps = cap.get(cv2.CAP_PROP_FPS) or 24
-        width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        writer = cv2.VideoWriter(str(out_path), fourcc, fps, (width, height))
+        if content_type == "video/webm":
+            out, out_type, copy_args = Path(tmp) / "out.webm", "video/webm", ["-c:v", "copy"]
+        else:
+            out, out_type = Path(tmp) / "out.mp4", "video/mp4"
+            copy_args = ["-c:v", "copy", "-movflags", "+faststart"]
 
-        thumbnail_bytes = None
-        frame_index = 0
-        while True:
-            ok, frame = cap.read()
-            if not ok:
-                break
-            frame = _blur_faces_in_frame(frame)
-            writer.write(frame)
-            if frame_index == 0:
-                ok_thumb, jpeg = cv2.imencode(".jpg", frame)
-                if ok_thumb:
-                    thumbnail_bytes = jpeg.tobytes()
-            frame_index += 1
+        result = _run_ffmpeg("-i", str(src), *_STRIP_ARGS, *copy_args, str(out))
+        if result.returncode != 0:
+            out, out_type = Path(tmp) / "reencoded.mp4", "video/mp4"
+            result = _run_ffmpeg(
+                "-i", str(src), *_STRIP_ARGS,
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p",
+                "-movflags", "+faststart", str(out),
+            )
+            if result.returncode != 0:
+                raise ValueError(f"Could not process video: {result.stderr.strip()[-300:]}")
 
-        cap.release()
-        writer.release()
-
-        blurred_bytes = out_path.read_bytes()
-        return blurred_bytes, (thumbnail_bytes or b"")
+        thumb = Path(tmp) / "thumb.jpg"
+        _run_ffmpeg(
+            "-i", str(out), "-frames:v", "1",
+            "-vf", "scale=320:320:force_original_aspect_ratio=decrease", "-q:v", "5", str(thumb),
+        )
+        return out.read_bytes(), out_type, (thumb.read_bytes() if thumb.exists() else b"")
 
 
 def process_and_store(data: bytes, content_type: str, key_prefix: str = "media") -> ProcessedMedia:
     """
     Runs the shared pipeline and returns opaque media IDs for the processed file + thumbnail.
 
-    Blocking and CPU-heavy (a 10s 720p video takes ~25s). Call it only from plain `def`
-    endpoints, which FastAPI runs in a worker thread. From an `async def` endpoint it stalls the
-    event loop and freezes every other request - including /health - until it returns.
+    Blocking: ~2s for a browser-compressed photo (face detection), well under a second for a
+    video (stream copy, no blur), longer only if a video's codec forces a re-encode. Call it only
+    from plain `def` endpoints, which FastAPI runs in a worker thread. From an `async def`
+    endpoint it stalls the event loop and freezes every other request until it returns.
     """
     virus_scan(data)
 
     if content_type in IMAGE_CONTENT_TYPES:
         processed, thumbnail = _strip_and_blur_image(data)
-        media_id = put_object(processed, "image/jpeg", key_prefix=key_prefix)
+        stored_type = "image/jpeg"
     elif content_type in VIDEO_CONTENT_TYPES:
-        processed, thumbnail = _strip_and_blur_video(data)
-        media_id = put_object(processed, "video/mp4", key_prefix=key_prefix)
+        processed, stored_type, thumbnail = _strip_video_metadata(data, content_type)
     else:
         raise ValueError(f"Unsupported content type for media pipeline: {content_type}")
+
+    media_id = put_object(processed, stored_type, key_prefix=key_prefix)
 
     thumbnail_media_id = None
     if thumbnail:
         thumbnail_media_id = put_object(thumbnail, "image/jpeg", key_prefix=f"{key_prefix}/thumbnails")
 
-    return ProcessedMedia(media_id=media_id, thumbnail_media_id=thumbnail_media_id, content_type=content_type)
+    return ProcessedMedia(media_id=media_id, thumbnail_media_id=thumbnail_media_id, content_type=stored_type)

@@ -63,7 +63,8 @@ export default function App() {
       <footer className="mx-auto max-w-5xl px-4 py-8 text-xs text-slate-600">
         <p>
           Demo build on synthetic data. Citizens never need an account. Reports are anonymous by
-          default; faces are blurred and metadata stripped before any file is stored.
+          default; location data is stripped from every file before it is stored, and faces are
+          blurred in photos (not in videos).
         </p>
       </footer>
     </div>

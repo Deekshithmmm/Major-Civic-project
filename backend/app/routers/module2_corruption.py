@@ -2,8 +2,9 @@
 Module 2 - anonymous corruption reporting (spec 2.3). Upload flow, routing-table lookup, a
 moderation API (no frontend built for it yet - see docs/spec-summary.md), and the public feed
 are implemented. Audio muting and manual additional-region blurring (spec: "let the uploader
-blur additional regions before submitting") are NOT implemented - only automatic bystander face
-blur via the shared media pipeline runs today.
+blur additional regions before submitting") are NOT implemented. Automatic bystander face blur
+runs on photos only; videos are not blurred (see services/media_pipeline.py), so on this module's
+public feed, moderation is the only check for identifiable bystanders in video.
 
 This router must never accept or log the caller's IP address or any account/session identifier
 (spec 2.3: "Never persist the uploader's IP address. Exclude this endpoint from access logging

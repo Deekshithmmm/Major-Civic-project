@@ -5,9 +5,11 @@ YOLOv8/ANPR pipeline wired in yet (see docs/spec-summary.md). Do not implement f
 against any identity database here, and do not add any column that stores or derives an Aadhaar
 number - that constraint is load-bearing, not a style preference (spec 1.1).
 
-Evidence clips referenced by media_id live in the shared media pipeline's object storage with
-faces auto-blurred before write. Retention: deleted once the challan is paid or the appeal
-window closes, whichever is later (spec 2.6).
+Evidence referenced by media_id lives in the shared media pipeline's object storage with location
+metadata stripped. Photos are face-blurred before write; video clips are NOT - a deliberate
+deviation from the spec's hard constraint in 2.2, made for speed (see services/media_pipeline.py).
+Retention: deleted once the challan is paid or the appeal window closes, whichever is later
+(spec 2.6).
 """
 
 import enum
@@ -100,7 +102,7 @@ class ViolationCase(Base):
     location: Mapped[str] = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
     ward_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
-    media_id: Mapped[str] = mapped_column(String(255), nullable=False)  # evidence clip, faces pre-blurred
+    media_id: Mapped[str] = mapped_column(String(255), nullable=False)  # faces blurred in photos, not video
 
     identity_path: Mapped[IdentityPath] = mapped_column(Enum(IdentityPath, name="case_identity_path"), nullable=False)
     resolved_plate_number: Mapped[str | None] = mapped_column(String(20), nullable=True)

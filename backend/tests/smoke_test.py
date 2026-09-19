@@ -13,13 +13,18 @@ resolution, role separation, and the append-only audit log.
 
 import io
 import random
+import subprocess
 import sys
+import tempfile
+from pathlib import Path
 
+import imageio_ffmpeg
 import requests
 from PIL import Image
 
 BASE = "http://localhost:8000"
 DEV_PASSWORD = "DevPassword123!"
+FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 
 # A fresh point inside the seeded "Lakeview Ward" polygon (12.97-12.99 lat, 77.59-77.61 lng) on
 # every run. Without the jitter, a second run lands inside the first run's 50m duplicate radius
@@ -63,6 +68,30 @@ def make_jpeg_with_gps_exif() -> bytes:
     return buf.getvalue()
 
 
+def make_video_with_gps_metadata() -> bytes:
+    """An MP4 tagged the way iPhones tag video (GPS + device keys) with an audio track."""
+    path = Path(tempfile.gettempdir()) / "smoke_gps_video.mp4"
+    subprocess.run(
+        [
+            FFMPEG, "-y", "-hide_banner", "-loglevel", "error",
+            "-f", "lavfi", "-i", "testsrc=duration=2:size=320x240:rate=15",
+            "-f", "lavfi", "-i", "sine=duration=2", "-shortest",
+            "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac",
+            "-metadata", "location=+12.9716+077.5946/", "-metadata", "make=SmokeTestPhone",
+            "-movflags", "use_metadata_tags", str(path),
+        ],
+        check=True,
+    )
+    return path.read_bytes()
+
+
+def media_info(data: bytes) -> str:
+    """ffmpeg's description of a media file: its streams and every metadata tag it carries."""
+    path = Path(tempfile.gettempdir()) / "smoke_probe.mp4"
+    path.write_bytes(data)
+    return subprocess.run([FFMPEG, "-hide_banner", "-i", str(path)], capture_output=True, text=True).stderr
+
+
 def main() -> int:
     print("\n== Module 3: citizen report flow ==")
 
@@ -103,6 +132,29 @@ def main() -> int:
     check("GPS EXIF is gone from the stored copy", 0x8825 not in stored_exif, f"exif keys: {list(stored_exif)}")
     check("camera make/model EXIF is gone too", 0x010F not in stored_exif and 0x0110 not in stored_exif)
     check("the stored file is still a valid image", Image.open(io.BytesIO(stored_bytes)).size == (800, 600))
+
+    print("\n== Privacy: video metadata and audio stripped (videos are not face-blurred) ==")
+    video = make_video_with_gps_metadata()
+    fixture_info = media_info(video)
+    check(
+        "video fixture genuinely has GPS, device make and audio",
+        all(k in fixture_info for k in ("12.9716", "SmokeTestPhone", "Audio:")),
+    )
+
+    vres = requests.post(
+        f"{BASE}/api/infra/issues",
+        files={"file": ("clip.mp4", video, "video/mp4")},
+        data={"category_slug": "fallen_tree", "lat": str(TEST_LAT + 0.003), "lng": str(TEST_LNG)},
+        timeout=120,
+    )
+    check("video report accepted", vres.status_code == 201, vres.text[:200])
+    if vres.status_code == 201:
+        vdetail = requests.get(f"{BASE}/api/infra/issues/{vres.json()['id']}", timeout=10).json()
+        stored_info = media_info(requests.get(f"{BASE}/api/media/{vdetail['media_id']}", timeout=30).content)
+        check("GPS location is gone from the stored video", "12.9716" not in stored_info)
+        check("device make is gone from the stored video", "SmokeTestPhone" not in stored_info)
+        check("audio is dropped from the stored video", "Audio:" not in stored_info)
+        check("stored video still has its picture", "Video: h264" in stored_info)
 
     print("\n== Module 3: duplicate clustering (spec 2.4 step 7) ==")
     dup_files = {"file": ("dup.jpg", make_jpeg_with_gps_exif(), "image/jpeg")}

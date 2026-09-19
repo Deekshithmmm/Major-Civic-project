@@ -73,7 +73,7 @@ class CorruptionReport(Base):
 
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     geohash: Mapped[str] = mapped_column(String(20), nullable=False)  # ward/500m precision, user-chosen
-    media_id: Mapped[str] = mapped_column(String(255), nullable=False)  # bystanders pre-blurred
+    media_id: Mapped[str] = mapped_column(String(255), nullable=False)  # bystanders blurred in photos, not video
 
     moderation_status: Mapped[ModerationStatus] = mapped_column(
         Enum(ModerationStatus, name="moderation_status"), default=ModerationStatus.PENDING

@@ -40,7 +40,8 @@ class IssuePublicResponse(BaseModel):
     sla_deadline: datetime
     created_at: datetime
     # Opaque object-storage key, fetched via GET /api/media/{media_id}. Safe to expose on a
-    # public board: Module 3 photos have had faces blurred and metadata stripped at ingestion,
+    # public board: every file has had location metadata stripped at ingestion (photos are also
+    # face-blurred; videos are not),
     # and unlike Module 4 evidence they are meant to be publicly visible.
     media_id: str | None = None
 

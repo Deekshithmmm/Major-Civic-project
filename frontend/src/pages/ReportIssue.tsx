@@ -23,7 +23,7 @@ export default function ReportIssue() {
   const [point, setPoint] = useState<LatLng | null>(null)
 
   const [progress, setProgress] = useState<number | null>(null)
-  // Upload done, waiting on the server: face blurring can take minutes for a video.
+  // Upload done, waiting on the server to strip metadata (and blur faces, for photos).
   const processing = progress === 100
   const [result, setResult] = useState<IssueCreateResult | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -54,8 +54,9 @@ export default function ReportIssue() {
       if (phone) form.append('phone_number', phone)
       form.append('file', prepared)
 
-      // Videos are blurred frame by frame on the server, so they get far longer to process.
-      const processingTimeoutMs = prepared.type.startsWith('video/') ? 10 * 60_000 : 2 * 60_000
+      // Videos usually take under a second, but one in a codec that can't be copied is fully
+      // re-encoded on the server, which for a long clip can take minutes.
+      const processingTimeoutMs = prepared.type.startsWith('video/') ? 5 * 60_000 : 2 * 60_000
       const created = await apiUpload<IssueCreateResult>(
         '/api/infra/issues',
         form,

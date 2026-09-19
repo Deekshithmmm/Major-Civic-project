@@ -47,7 +47,7 @@ export default function IssueDetail() {
             className="w-full rounded-md border border-slate-200"
           />
           <figcaption className="mt-1 text-xs text-slate-600">
-            Faces blurred and metadata stripped at upload.
+            Location data removed at upload.
           </figcaption>
         </figure>
       )}

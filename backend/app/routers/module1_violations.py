@@ -3,7 +3,7 @@ Module 1 - violation detection & enforcement assist (spec 2.2). Officer review q
 upload, and challan issuance/appeal are implemented against seeded cases. The camera-feed
 ingestion + YOLOv8 detection + ANPR OCR pipeline is NOT implemented - see
 docs/spec-summary.md. Citizen-uploaded evidence runs through the same shared media pipeline
-(EXIF strip + face blur) as Modules 2-3 and lands in the same officer review queue a
+(metadata strip; face blur on photos only) as Modules 2-3 and lands in the same officer review queue a
 camera-detected case would, satisfying "Same pipeline, same officer review, no auto-fine"
 (spec 2.2, step 8) even without the CV pipeline behind it.
 """

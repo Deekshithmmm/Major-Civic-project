@@ -37,6 +37,9 @@ deliberately absent, not merely unfinished. Do not add any endpoint that writes 
 - The **hard stop for any offence involving a minor**, enforced *before* any bytes are accepted.
   Accepting that upload "to forward it" is itself an offence under POCSO and IT Act 67B. The rule
   is already seeded in `emergency_routing_rules` (`is_hard_stop = true`).
+- Its **own irreversible face blur for sexual-offence footage**. The shared media pipeline no
+  longer blurs video at all (removed for speed), so Module 4 cannot inherit that protection from
+  it, and the spec makes blur at ingestion mandatory for these reports.
 
 ## Why the design looks like this
 
@@ -109,15 +112,15 @@ With the stack running and freshly seeded:
 cd backend && python -m tests.smoke_test
 ```
 
-38 checks covering the guarantees that actually matter — EXIF stripping verified on the stored
-file, 50m duplicate clustering, role separation (moderator refused Module 1, municipal officer
+44 checks covering the guarantees that actually matter — EXIF stripping verified on the stored
+photo, GPS/device tags and audio verified gone from the stored video, 50m duplicate clustering, role separation (moderator refused Module 1, municipal officer
 refused Module 2), proof-gated resolution, SLA breach + shareable card, officer-confirmed
 challans with the fine ladder read from config, appeal separation of duties, and the
 police-personnel routing rule that must never notify local police.
 
 It's safe to re-run without resetting — it picks a fresh map location each time so it never
 collides with its own earlier data, and skips the challan flow if a previous run already
-confirmed the one seeded ANPR case (34 passed / 1 skipped instead of 38). For the full set,
+confirmed the one seeded ANPR case (40 passed / 1 skipped instead of 44). For the full set,
 reset first:
 
 ```bash
@@ -133,8 +136,8 @@ backend/app/
                 "privacy by design" requirement.
   schemas/      Pydantic request/response schemas
   routers/      FastAPI routers
-  services/     jurisdiction resolution (PostGIS), media pipeline (EXIF strip, blur,
-                thumbnailing), storage (S3/MinIO client), SLA timers, auth
+  services/     jurisdiction resolution (PostGIS), media pipeline (metadata strip, photo
+                face blur, thumbnailing), storage (S3/MinIO client), SLA timers, auth
   seed/         synthetic seed data generator
 frontend/src/
   pages/        citizen report flow, public status board, officer dashboard, auth
@@ -162,7 +165,18 @@ frontend/src/
 
 Listed explicitly because several of these look done from the outside and are not.
 
-- **Face blurring is untested against real faces.** The pipeline runs and blurs what the
+- **Videos are not face-blurred — a deliberate deviation from the spec.** The spec requires
+  faces in stored video to be blurred for Modules 1–3. Blurring every frame took 25–45s per
+  10-second clip, so video blur was removed for speed. Location data, device make/model and
+  audio are still stripped from every video (stream copy via a bundled ffmpeg, 0.2–0.9s
+  measured), and that is what keeps a report anonymous. The consequences: Module 3 videos on the
+  public board show bystanders' faces; on Module 2's public corruption feed, pre-publication
+  moderation is now the only check for identifiable bystanders in video; Module 1 evidence
+  clips reach officers unblurred. Photos are still blurred.
+- **Videos can't be viewed in the UI yet.** The issue page and officer dashboard render every
+  report's media as an `<img>`, so a video report shows a broken image. The stored file is a
+  browser-playable MP4/WebM; the pages just need to know the media type.
+- **Photo face blurring is untested against real faces.** The pipeline runs and blurs what the
   detector finds, but it uses OpenCV's Haar cascade frontal-face detector, which misses profile
   views, partial occlusion, small/distant faces, and performs unevenly across lighting and skin
   tones. It has only been exercised here on synthetic images containing no faces. Before this
@@ -174,13 +188,13 @@ Listed explicitly because several of these look done from the outside and are no
   smoke test — but no one has actually clicked through the report flow, the map, or the officer
   dashboard. Do that before demoing.
 - **Virus scanning is a no-op stub** (`virus_scan()` in `services/media_pipeline.py`).
-- **Uploads are processed inside the request**, so the citizen waits while faces are blurred:
-  about 2s for a browser-compressed photo, but 25–45s for a 10-second 720p video, because video
-  is blurred frame by frame. The upload endpoints are plain `def` so FastAPI runs them in worker
-  threads (API stays responsive; measured `/health` at ≤0.4s during a video upload, versus
-  frozen for the full duration when they were `async def`), and the form shows a processing
-  state with a timeout instead of hanging. The spec's intended design is to hand the file to a
-  Redis-backed worker and return immediately; that isn't built.
+- **Uploads are processed inside the request**: about 2s for a browser-compressed photo (face
+  detection) and under a second for most videos. A video whose codec can't be stream-copied into
+  MP4 (e.g. ProRes) is re-encoded instead, which takes longer. The upload endpoints are plain
+  `def` so FastAPI runs them in worker threads (API stays responsive; measured `/health` at
+  ≤0.4s during an upload, versus frozen for the full duration when they were `async def`), and
+  the form shows a processing state with a timeout instead of hanging. The spec's intended design
+  is to hand the file to a Redis-backed worker and return immediately; that isn't built.
 - **The SLA sweep is lazy**, triggered when the public board or officer queue is read, rather
   than running on a schedule. Redis is in the compose file for a Celery/RQ worker that doesn't
   exist yet. Escalation to the tier-2 department on breach is recorded in config but not
