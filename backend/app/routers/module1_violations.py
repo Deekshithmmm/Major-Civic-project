@@ -38,6 +38,7 @@ from app.schemas.module1_violations import (
 )
 from app.services.media_pipeline import IMAGE_CONTENT_TYPES, VIDEO_CONTENT_TYPES, process_and_store
 from app.services.notifications import send_email, send_sms
+from app.services.storage import media_kind
 
 router = APIRouter(prefix="/api/violations", tags=["module1-violations"])
 
@@ -54,6 +55,7 @@ def _case_to_response(case: ViolationCase) -> ViolationCaseResponse:
         lat=point.y,
         lng=point.x,
         media_id=case.media_id,
+        media_kind=media_kind(case.media_id),
         identity_path=case.identity_path,
         resolved_plate_number=case.resolved_plate_number,
         status=case.status,

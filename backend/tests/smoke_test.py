@@ -292,6 +292,44 @@ def main() -> int:
     check("public feed only shows moderated reports", all("accused_department" in f for f in feed))
     check("feed never carries an accused individual's name", all("accused_name" not in f for f in feed))
 
+    submitted = requests.post(
+        f"{BASE}/api/corruption/reports",
+        files={"file": ("evidence.jpg", make_jpeg_with_gps_exif(), "image/jpeg")},
+        data={
+            "accused_department": "Smoke Test Department",
+            "accused_designation": "Clerk",
+            "accused_party_type": "municipal_or_dept_staff",
+            "description": "Smoke test report",
+            "geohash": "tdr1x",
+        },
+        timeout=60,
+    )
+    check("corruption report accepted with no account or identifier", submitted.status_code == 201, submitted.text[:200])
+    corr_token = submitted.json()["tracking_token"]
+    check("corruption tracking token is not a short number", not corr_token.isdigit() and len(corr_token) > 20, corr_token)
+
+    tracked = requests.get(f"{BASE}/api/corruption/reports/track/{corr_token}", timeout=10).json()
+    check("report starts as pending moderation", tracked["moderation_status"] == "pending", str(tracked))
+
+    before_ids = {f["id"] for f in requests.get(f"{BASE}/api/corruption/feed", timeout=10).json()}
+    pending = requests.get(f"{BASE}/api/corruption/moderation/queue", headers=mod_h, timeout=10).json()
+    new_item = next((p for p in pending if p["accused_department"] == "Smoke Test Department"), None)
+    check("moderator sees the report before it is public", new_item is not None)
+    check("unmoderated report is not on the public feed", new_item is None or new_item["id"] not in before_ids)
+
+    if new_item:
+        check("moderation queue carries the media to review", bool(new_item["media_id"]) and new_item["media_kind"] == "image")
+        approved = requests.post(
+            f"{BASE}/api/corruption/moderation/{new_item['id']}/approve", headers=mod_h, json={}, timeout=10
+        )
+        check("moderator can publish it", approved.status_code == 200, approved.text[:200])
+        check(
+            "published report is flagged unverified, not as a finding",
+            approved.status_code != 200 or approved.json()["public_status_badge"] == "unverified_allegation",
+        )
+        after = requests.get(f"{BASE}/api/corruption/feed", timeout=10).json()
+        check("approved report now appears on the feed", any(f["id"] == new_item["id"] for f in after))
+
     summary = f"  {passed} passed, {failed} failed" + (f", {skipped} skipped" if skipped else "")
     print(f"\n{'=' * 52}\n{summary}\n{'=' * 52}\n")
     return 1 if failed else 0

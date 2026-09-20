@@ -1,6 +1,6 @@
 """
 Module 2 - anonymous corruption reporting (spec 2.3). Upload flow, routing-table lookup, a
-moderation API (no frontend built for it yet - see docs/spec-summary.md), and the public feed
+moderation API, and the public feed
 are implemented. Audio muting and manual additional-region blurring (spec: "let the uploader
 blur additional regions before submitting") are NOT implemented. Automatic bystander face blur
 runs on photos only; videos are not blurred (see services/media_pipeline.py), so on this module's
@@ -37,11 +37,26 @@ from app.schemas.module2_corruption import (
     RoutingRuleResponse,
 )
 from app.services.media_pipeline import IMAGE_CONTENT_TYPES, VIDEO_CONTENT_TYPES, process_and_store
+from app.services.storage import media_kind
 from app.services.notifications import send_email
 
 router = APIRouter(prefix="/api/corruption", tags=["module2-corruption"])
 
 moderator_roles = require_roles(UserRole.MODERATOR, UserRole.ADMIN)
+
+
+def _feed_item(report: CorruptionReport) -> FeedItemResponse:
+    return FeedItemResponse(
+        id=report.id,
+        accused_department=report.accused_department,
+        accused_designation=report.accused_designation,
+        description=report.description,
+        geohash=report.geohash,
+        public_status_badge=report.public_status_badge,
+        created_at=report.created_at,
+        media_id=report.media_id,
+        media_kind=media_kind(report.media_id),
+    )
 
 
 @router.get("/routing-rules", response_model=list[RoutingRuleResponse])
@@ -119,7 +134,7 @@ def public_feed(db: Session = Depends(get_db)):
         .where(CorruptionReport.moderation_status == ModerationStatus.APPROVED)
         .order_by(CorruptionReport.created_at.desc())
     ).scalars().all()
-    return reports
+    return [_feed_item(r) for r in reports]
 
 
 @router.get("/moderation/queue", response_model=list[FeedItemResponse])
@@ -129,7 +144,7 @@ def moderation_queue(user: User = Depends(moderator_roles), db: Session = Depend
         .where(CorruptionReport.moderation_status == ModerationStatus.PENDING)
         .order_by(CorruptionReport.created_at.asc())
     ).scalars().all()
-    return reports
+    return [_feed_item(r) for r in reports]
 
 
 @router.post("/moderation/{report_id}/approve", response_model=FeedItemResponse)
@@ -146,7 +161,7 @@ def approve_report(
     report.public_status_badge = PublicStatusBadge.UNVERIFIED_ALLEGATION
     db.commit()
     db.refresh(report)
-    return report
+    return _feed_item(report)
 
 
 @router.post("/moderation/{report_id}/reject", response_model=FeedItemResponse)
@@ -163,7 +178,7 @@ def reject_report(
     report.public_status_badge = PublicStatusBadge.DISMISSED
     db.commit()
     db.refresh(report)
-    return report
+    return _feed_item(report)
 
 
 @router.post("/reports/{report_id}/status", response_model=FeedItemResponse)
@@ -180,4 +195,4 @@ def update_status_badge(
     report.public_status_badge = badge
     db.commit()
     db.refresh(report)
-    return report
+    return _feed_item(report)

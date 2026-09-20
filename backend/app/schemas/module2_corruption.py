@@ -28,6 +28,11 @@ class ReportStatusResponse(BaseModel):
 
 
 class FeedItemResponse(BaseModel):
+    """
+    Never carries an accused individual's name - department and designation only (spec 2.3).
+    `geohash` stays coarse; it is the ward-level value the uploader chose, never a precise pin.
+    """
+
     id: uuid.UUID
     accused_department: str
     accused_designation: str
@@ -35,9 +40,8 @@ class FeedItemResponse(BaseModel):
     geohash: str
     public_status_badge: PublicStatusBadge
     created_at: datetime
-
-    class Config:
-        from_attributes = True
+    media_id: str
+    media_kind: str
 
 
 class ModerationDecisionRequest(BaseModel):

@@ -208,3 +208,88 @@ export type CurrentUser = {
   role: string
   department: string | null
 }
+
+// --- Module 2 types ---------------------------------------------------------
+
+export type AccusedPartyType =
+  | 'state_govt_employee'
+  | 'central_govt_employee'
+  | 'police_personnel'
+  | 'municipal_or_dept_staff'
+
+export type PublicStatusBadge =
+  | 'unverified_allegation'
+  | 'under_investigation'
+  | 'action_taken'
+  | 'dismissed'
+
+export type ModerationStatus = 'pending' | 'approved' | 'rejected'
+
+export type RoutingRule = {
+  accused_party_type: AccusedPartyType
+  primary_route_body: string
+  notify_local_police: boolean
+}
+
+export type FeedItem = {
+  id: string
+  accused_department: string
+  accused_designation: string
+  description: string | null
+  geohash: string
+  public_status_badge: PublicStatusBadge
+  created_at: string
+  media_id: string
+  media_kind: MediaKind
+}
+
+export type CorruptionReportResult = {
+  tracking_token: string
+  moderation_status: ModerationStatus
+}
+
+export type CorruptionReportStatus = {
+  tracking_token: string
+  moderation_status: ModerationStatus
+  public_status_badge: PublicStatusBadge
+  created_at: string
+}
+
+// --- Module 1 types ---------------------------------------------------------
+
+export type IdentityPath = 'anpr' | 'unidentified'
+
+export type ViolationCaseStatus = 'pending_review' | 'confirmed' | 'reclassified' | 'dismissed'
+
+export type ViolationClass = {
+  id: string
+  slug: string
+  label: string
+  identity_path: IdentityPath
+  statutory_section: string | null
+}
+
+export type ViolationCase = {
+  id: string
+  violation_class_slug: string
+  violation_class_label: string
+  confidence_score: number | null
+  lat: number
+  lng: number
+  media_id: string
+  media_kind: MediaKind
+  identity_path: IdentityPath
+  resolved_plate_number: string | null
+  status: ViolationCaseStatus
+  source: string
+  created_at: string
+}
+
+export type Challan = {
+  id: string
+  case_id: string
+  statutory_section: string | null
+  amount_rupees: number
+  due_date: string
+  status: string
+}

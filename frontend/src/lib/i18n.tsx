@@ -133,6 +133,113 @@ const STRINGS = {
   },
   required: { en: 'Required', hi: 'आवश्यक', kn: 'ಅಗತ್ಯವಿದೆ' },
   errorGeneric: { en: 'Something went wrong. Please try again.', hi: 'कुछ गलत हुआ। कृपया पुनः प्रयास करें।', kn: 'ಏನೋ ತಪ್ಪಾಗಿದೆ. ದಯವಿಟ್ಟು ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ.' },
+
+  // --- Home ---
+  homeIntro: {
+    en: 'Report civic problems, corruption and violations. No account is ever needed, and reports are anonymous by default.',
+    hi: 'नागरिक समस्याएँ, भ्रष्टाचार और उल्लंघन दर्ज करें। किसी खाते की आवश्यकता नहीं, और शिकायतें डिफ़ॉल्ट रूप से गुमनाम हैं।',
+    kn: 'ನಾಗರಿಕ ಸಮಸ್ಯೆಗಳು, ಭ್ರಷ್ಟಾಚಾರ ಮತ್ತು ಉಲ್ಲಂಘನೆಗಳನ್ನು ವರದಿ ಮಾಡಿ. ಖಾತೆ ಅಗತ್ಯವಿಲ್ಲ, ಮತ್ತು ದೂರುಗಳು ಪೂರ್ವನಿಯೋಜಿತವಾಗಿ ಅನಾಮಧೇಯ.',
+  },
+  homeInfraTitle: { en: 'Civic infrastructure', hi: 'नागरिक अवसंरचना', kn: 'ನಾಗರಿಕ ಮೂಲಸೌಕರ್ಯ' },
+  homeInfraBody: {
+    en: 'Potholes, street lights, drains, garbage, water leaks. Routed to the responsible desk with a deadline, and tracked publicly.',
+    hi: 'गड्ढे, स्ट्रीट लाइट, नालियाँ, कचरा, पानी का रिसाव। समय-सीमा के साथ ज़िम्मेदार विभाग को भेजा जाता है और सार्वजनिक रूप से ट्रैक किया जाता है।',
+    kn: 'ಗುಂಡಿಗಳು, ಬೀದಿ ದೀಪಗಳು, ಚರಂಡಿಗಳು, ಕಸ, ನೀರಿನ ಸೋರಿಕೆ. ಗಡುವಿನೊಂದಿಗೆ ಜವಾಬ್ದಾರ ಇಲಾಖೆಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ ಮತ್ತು ಸಾರ್ವಜನಿಕವಾಗಿ ಟ್ರ್ಯಾಕ್ ಮಾಡಲಾಗುತ್ತದೆ.',
+  },
+  homeCorruptionTitle: { en: 'Corruption reporting', hi: 'भ्रष्टाचार की शिकायत', kn: 'ಭ್ರಷ್ಟಾಚಾರ ವರದಿ' },
+  homeCorruptionBody: {
+    en: 'Bribery or misconduct by officials, reported anonymously and routed to an independent oversight body — never to the accused.',
+    hi: 'अधिकारियों द्वारा रिश्वत या कदाचार, गुमनाम रूप से दर्ज और स्वतंत्र निगरानी संस्था को भेजा जाता है — कभी आरोपी को नहीं।',
+    kn: 'ಅಧಿಕಾರಿಗಳ ಲಂಚ ಅಥವಾ ದುರ್ನಡತೆ, ಅನಾಮಧೇಯವಾಗಿ ವರದಿಯಾಗಿ ಸ್ವತಂತ್ರ ಮೇಲ್ವಿಚಾರಣಾ ಸಂಸ್ಥೆಗೆ ಕಳುಹಿಸಲಾಗುತ್ತದೆ — ಎಂದಿಗೂ ಆರೋಪಿಗೆ ಅಲ್ಲ.',
+  },
+  homeCorruptionCta: { en: 'Open the feed', hi: 'फ़ीड खोलें', kn: 'ಫೀಡ್ ತೆರೆಯಿರಿ' },
+  homeViolationsTitle: { en: 'Violations and enforcement', hi: 'उल्लंघन और प्रवर्तन', kn: 'ಉಲ್ಲಂಘನೆ ಮತ್ತು ಜಾರಿ' },
+  homeViolationsBody: {
+    en: 'Littering, illegal dumping, footpath parking. An officer reviews the evidence — the system never issues a fine on its own.',
+    hi: 'कचरा फेंकना, अवैध डंपिंग, फुटपाथ पर पार्किंग। एक अधिकारी साक्ष्य की समीक्षा करता है — सिस्टम स्वयं कभी जुर्माना जारी नहीं करता।',
+    kn: 'ಕಸ ಎಸೆಯುವುದು, ಅಕ್ರಮ ಡಂಪಿಂಗ್, ಪಾದಚಾರಿ ಮಾರ್ಗದಲ್ಲಿ ಪಾರ್ಕಿಂಗ್. ಅಧಿಕಾರಿ ಸಾಕ್ಷ್ಯ ಪರಿಶೀಲಿಸುತ್ತಾರೆ — ವ್ಯವಸ್ಥೆ ಸ್ವತಃ ದಂಡ ವಿಧಿಸುವುದಿಲ್ಲ.',
+  },
+  homeViolationsCta: { en: 'Report a violation', hi: 'उल्लंघन दर्ज करें', kn: 'ಉಲ್ಲಂಘನೆ ವರದಿ ಮಾಡಿ' },
+  homeEmergencyTitle: { en: 'Emergency and accountability', hi: 'आपातकाल और जवाबदेही', kn: 'ತುರ್ತು ಮತ್ತು ಹೊಣೆಗಾರಿಕೆ' },
+  homeEmergencyBody: {
+    en: 'If someone is in danger, call 112 first. Also shows how each police station responds to the reports it receives.',
+    hi: 'यदि कोई ख़तरे में है, तो पहले 112 पर कॉल करें। यह भी दिखाता है कि प्रत्येक पुलिस स्टेशन प्राप्त शिकायतों पर कैसे प्रतिक्रिया देता है।',
+    kn: 'ಯಾರಾದರೂ ಅಪಾಯದಲ್ಲಿದ್ದರೆ ಮೊದಲು 112 ಗೆ ಕರೆ ಮಾಡಿ. ಪ್ರತಿ ಠಾಣೆ ಸ್ವೀಕರಿಸಿದ ದೂರುಗಳಿಗೆ ಹೇಗೆ ಸ್ಪಂದಿಸುತ್ತದೆ ಎಂಬುದನ್ನೂ ತೋರಿಸುತ್ತದೆ.',
+  },
+  homeEmergencyCta: { en: 'Open', hi: 'खोलें', kn: 'ತೆರೆಯಿರಿ' },
+  homeNoAccount: {
+    en: 'Officials sign in to review reports. Citizens never do.',
+    hi: 'अधिकारी शिकायतों की समीक्षा के लिए साइन इन करते हैं। नागरिक कभी नहीं।',
+    kn: 'ಅಧಿಕಾರಿಗಳು ದೂರುಗಳನ್ನು ಪರಿಶೀಲಿಸಲು ಸೈನ್ ಇನ್ ಮಾಡುತ್ತಾರೆ. ನಾಗರಿಕರು ಎಂದಿಗೂ ಇಲ್ಲ.',
+  },
+
+  // --- Nav ---
+  navHome: { en: 'Home', hi: 'होम', kn: 'ಮುಖಪುಟ' },
+  navCorruption: { en: 'Corruption', hi: 'भ्रष्टाचार', kn: 'ಭ್ರಷ್ಟಾಚಾರ' },
+  navViolations: { en: 'Violations', hi: 'उल्लंघन', kn: 'ಉಲ್ಲಂಘನೆ' },
+  navEmergency: { en: 'Emergency', hi: 'आपातकाल', kn: 'ತುರ್ತು' },
+
+  // --- Module 2 ---
+  corrReportTitle: { en: 'Report corruption anonymously', hi: 'भ्रष्टाचार की गुमनाम शिकायत करें', kn: 'ಅನಾಮಧೇಯವಾಗಿ ಭ್ರಷ್ಟಾಚಾರ ವರದಿ ಮಾಡಿ' },
+  corrAnonIntro: {
+    en: 'No account, no phone number, no email. Your IP address is not recorded, and file metadata is removed before storage.',
+    hi: 'कोई खाता नहीं, कोई फ़ोन नंबर नहीं, कोई ईमेल नहीं। आपका IP पता दर्ज नहीं किया जाता, और संग्रह से पहले फ़ाइल मेटाडेटा हटा दिया जाता है।',
+    kn: 'ಖಾತೆ ಇಲ್ಲ, ಫೋನ್ ಸಂಖ್ಯೆ ಇಲ್ಲ, ಇಮೇಲ್ ಇಲ್ಲ. ನಿಮ್ಮ IP ವಿಳಾಸ ದಾಖಲಾಗುವುದಿಲ್ಲ, ಮತ್ತು ಸಂಗ್ರಹಣೆಗೂ ಮೊದಲು ಫೈಲ್ ಮೆಟಾಡೇಟಾ ತೆಗೆದುಹಾಕಲಾಗುತ್ತದೆ.',
+  },
+  corrDepartment: { en: 'Department', hi: 'विभाग', kn: 'ಇಲಾಖೆ' },
+  corrDesignation: { en: 'Designation', hi: 'पद', kn: 'ಹುದ್ದೆ' },
+  corrPartyType: { en: 'Who is being reported', hi: 'किसकी शिकायत है', kn: 'ಯಾರ ಬಗ್ಗೆ ದೂರು' },
+  corrNoNames: {
+    en: 'Do not enter anyone’s name. This platform publishes department and designation only.',
+    hi: 'किसी का नाम दर्ज न करें। यह प्लेटफ़ॉर्म केवल विभाग और पद प्रकाशित करता है।',
+    kn: 'ಯಾರ ಹೆಸರನ್ನೂ ನಮೂದಿಸಬೇಡಿ. ಈ ವೇದಿಕೆ ಇಲಾಖೆ ಮತ್ತು ಹುದ್ದೆಯನ್ನು ಮಾತ್ರ ಪ್ರಕಟಿಸುತ್ತದೆ.',
+  },
+  corrRoutedTo: { en: 'This report will be sent to', hi: 'यह शिकायत भेजी जाएगी', kn: 'ಈ ದೂರು ಕಳುಹಿಸಲಾಗುವುದು' },
+  corrPoliceNever: {
+    en: 'Local police are never notified about reports against police personnel.',
+    hi: 'पुलिसकर्मियों के विरुद्ध शिकायतों की सूचना स्थानीय पुलिस को कभी नहीं दी जाती।',
+    kn: 'ಪೊಲೀಸ್ ಸಿಬ್ಬಂದಿ ವಿರುದ್ಧದ ದೂರುಗಳ ಬಗ್ಗೆ ಸ್ಥಳೀಯ ಪೊಲೀಸರಿಗೆ ಎಂದಿಗೂ ತಿಳಿಸಲಾಗುವುದಿಲ್ಲ.',
+  },
+  corrAreaTitle: { en: 'Approximate area', hi: 'अनुमानित क्षेत्र', kn: 'ಅಂದಾಜು ಪ್ರದೇಶ' },
+  corrAreaHelp: {
+    en: 'Pick a point on the map. Only a rough area is saved, never an exact spot, and your device location is never read.',
+    hi: 'मानचित्र पर एक बिंदु चुनें। केवल एक मोटा क्षेत्र सहेजा जाता है, सटीक स्थान कभी नहीं, और आपके डिवाइस का स्थान कभी नहीं पढ़ा जाता।',
+    kn: 'ನಕ್ಷೆಯಲ್ಲಿ ಒಂದು ಬಿಂದು ಆಯ್ಕೆಮಾಡಿ. ಅಂದಾಜು ಪ್ರದೇಶ ಮಾತ್ರ ಉಳಿಸಲಾಗುತ್ತದೆ, ನಿಖರ ಸ್ಥಳ ಎಂದಿಗೂ ಅಲ್ಲ, ಮತ್ತು ನಿಮ್ಮ ಸಾಧನದ ಸ್ಥಳ ಓದಲಾಗುವುದಿಲ್ಲ.',
+  },
+  corrSubmitted: {
+    en: 'Report received. It is reviewed by a moderator before it can appear publicly.',
+    hi: 'शिकायत प्राप्त हुई। सार्वजनिक रूप से दिखने से पहले एक मॉडरेटर इसकी समीक्षा करता है।',
+    kn: 'ದೂರು ಸ್ವೀಕರಿಸಲಾಗಿದೆ. ಸಾರ್ವಜನಿಕವಾಗಿ ಕಾಣಿಸುವ ಮೊದಲು ಮಾಡರೇಟರ್ ಪರಿಶೀಲಿಸುತ್ತಾರೆ.',
+  },
+  corrFeedTitle: { en: 'Corruption reports', hi: 'भ्रष्टाचार की शिकायतें', kn: 'ಭ್ರಷ್ಟಾಚಾರ ದೂರುಗಳು' },
+  corrFeedEmpty: {
+    en: 'Nothing published yet. Reports appear here only after a moderator approves them.',
+    hi: 'अभी कुछ प्रकाशित नहीं हुआ। मॉडरेटर की मंज़ूरी के बाद ही शिकायतें यहाँ दिखती हैं।',
+    kn: 'ಇನ್ನೂ ಏನೂ ಪ್ರಕಟವಾಗಿಲ್ಲ. ಮಾಡರೇಟರ್ ಅನುಮೋದಿಸಿದ ನಂತರವೇ ದೂರುಗಳು ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತವೆ.',
+  },
+  corrFeedDisclaimer: {
+    en: 'These are allegations, not findings. The platform never names an individual.',
+    hi: 'ये आरोप हैं, निष्कर्ष नहीं। यह प्लेटफ़ॉर्म कभी किसी व्यक्ति का नाम नहीं बताता।',
+    kn: 'ಇವು ಆರೋಪಗಳು, ತೀರ್ಮಾನಗಳಲ್ಲ. ವೇದಿಕೆ ಎಂದಿಗೂ ವ್ಯಕ್ತಿಯ ಹೆಸರನ್ನು ಹೇಳುವುದಿಲ್ಲ.',
+  },
+  badgeUnverified: { en: 'Unverified allegation', hi: 'असत्यापित आरोप', kn: 'ಪರಿಶೀಲಿಸದ ಆರೋಪ' },
+  badgeInvestigating: { en: 'Under investigation', hi: 'जाँच जारी', kn: 'ತನಿಖೆಯಲ್ಲಿದೆ' },
+  badgeActionTaken: { en: 'Action taken', hi: 'कार्रवाई की गई', kn: 'ಕ್ರಮ ಕೈಗೊಳ್ಳಲಾಗಿದೆ' },
+  badgeDismissed: { en: 'Dismissed', hi: 'खारिज', kn: 'ವಜಾಗೊಳಿಸಲಾಗಿದೆ' },
+
+  // --- Module 1 ---
+  violReportTitle: { en: 'Report a civic violation', hi: 'नागरिक उल्लंघन दर्ज करें', kn: 'ನಾಗರಿಕ ಉಲ್ಲಂಘನೆ ವರದಿ ಮಾಡಿ' },
+  violIntro: {
+    en: 'An authorised officer reviews your evidence and decides. No fine is ever issued automatically.',
+    hi: 'एक अधिकृत अधिकारी आपके साक्ष्य की समीक्षा कर निर्णय लेता है। कोई जुर्माना स्वतः जारी नहीं होता।',
+    kn: 'ಅಧಿಕೃತ ಅಧಿಕಾರಿ ನಿಮ್ಮ ಸಾಕ್ಷ್ಯ ಪರಿಶೀಲಿಸಿ ನಿರ್ಧರಿಸುತ್ತಾರೆ. ಯಾವುದೇ ದಂಡ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ವಿಧಿಸಲಾಗುವುದಿಲ್ಲ.',
+  },
+  violClass: { en: 'What did you see', hi: 'आपने क्या देखा', kn: 'ನೀವು ಏನು ನೋಡಿದಿರಿ' },
+  violSubmitted: {
+    en: 'Evidence received. It is now waiting for an officer to review it.',
+    hi: 'साक्ष्य प्राप्त हुआ। अब यह अधिकारी की समीक्षा की प्रतीक्षा में है।',
+    kn: 'ಸಾಕ್ಷ್ಯ ಸ್ವೀಕರಿಸಲಾಗಿದೆ. ಈಗ ಅಧಿಕಾರಿಯ ಪರಿಶೀಲನೆಗೆ ಕಾಯುತ್ತಿದೆ.',
+  },
 } as const
 
 export type StringKey = keyof typeof STRINGS

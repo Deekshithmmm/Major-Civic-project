@@ -1,33 +1,37 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import ReportMedia from '../components/ReportMedia'
-import StatusBadge from '../components/StatusBadge'
-import {
-  apiGet,
-  apiPost,
-  apiUpload,
-  clearToken,
-  compressImage,
-  getToken,
-  type CurrentUser,
-  type Issue,
-} from '../lib/api'
+import InfraQueue from '../components/officer/InfraQueue'
+import ModerationQueue from '../components/officer/ModerationQueue'
+import VigilancePanel from '../components/officer/VigilancePanel'
+import ViolationQueue from '../components/officer/ViolationQueue'
+import { apiGet, clearToken, getToken, type CurrentUser } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+
+type TabId = 'infra' | 'violations' | 'moderation' | 'vigilance'
+
+/**
+ * Which panels a role may open. This mirrors the API's own role checks rather than replacing
+ * them - the separation of duties in spec 2.6 (a moderator cannot see Module 1 identity data, a
+ * municipal officer cannot see Module 2 reports) is enforced server-side; hiding a tab just
+ * avoids showing an official a panel that would only return 403.
+ */
+const TABS: { id: TabId; label: string; roles: string[] }[] = [
+  {
+    id: 'infra',
+    label: 'Infrastructure',
+    roles: ['municipal_officer', 'department_engineer', 'admin'],
+  },
+  { id: 'violations', label: 'Violations', roles: ['municipal_officer', 'admin'] },
+  { id: 'moderation', label: 'Moderation', roles: ['moderator', 'admin'] },
+  { id: 'vigilance', label: 'Vigilance', roles: ['vigilance_officer', 'admin'] },
+]
 
 export default function OfficerDashboard() {
   const { t } = useI18n()
   const navigate = useNavigate()
   const [user, setUser] = useState<CurrentUser | null>(null)
-  const [queue, setQueue] = useState<Issue[]>([])
-  const [error, setError] = useState<string | null>(null)
-  const [busyId, setBusyId] = useState<string | null>(null)
-
-  const refresh = useCallback(() => {
-    apiGet<Issue[]>('/api/infra/officer/queue')
-      .then(setQueue)
-      .catch(() => setError(t('errorGeneric')))
-  }, [t])
+  const [tab, setTab] = useState<TabId | null>(null)
 
   useEffect(() => {
     if (!getToken()) {
@@ -35,45 +39,23 @@ export default function OfficerDashboard() {
       return
     }
     apiGet<CurrentUser>('/api/auth/me')
-      .then(setUser)
+      .then((u) => {
+        setUser(u)
+        setTab(TABS.find((x) => x.roles.includes(u.role))?.id ?? null)
+      })
       .catch(() => {
         clearToken()
         navigate('/officer')
       })
-    refresh()
-  }, [navigate, refresh])
+  }, [navigate])
 
-  async function act(issueId: string, action: 'acknowledge' | 'start') {
-    setBusyId(issueId)
-    try {
-      await apiPost(`/api/infra/officer/issues/${issueId}/${action}`)
-      refresh()
-    } catch {
-      setError(t('errorGeneric'))
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  async function resolve(issueId: string, file: File) {
-    setBusyId(issueId)
-    try {
-      const form = new FormData()
-      form.append('proof_file', await compressImage(file))
-      await apiUpload(`/api/infra/officer/issues/${issueId}/resolve`, form)
-      refresh()
-    } catch {
-      setError(t('errorGeneric'))
-    } finally {
-      setBusyId(null)
-    }
-  }
+  const available = user ? TABS.filter((x) => x.roles.includes(user.role)) : []
 
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold text-ink">{t('queueTitle')}</h1>
+          <h1 className="text-xl font-semibold text-ink">Officer dashboard</h1>
           {user && (
             <p className="text-sm text-slate-600">
               {user.full_name} · {user.role.replace(/_/g, ' ')}
@@ -92,80 +74,34 @@ export default function OfficerDashboard() {
         </button>
       </div>
 
-      {error && (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-          {error}
+      {available.length > 1 && (
+        <div className="flex flex-wrap gap-2" role="tablist" aria-label="Modules">
+          {available.map((x) => (
+            <button
+              key={x.id}
+              type="button"
+              role="tab"
+              aria-selected={tab === x.id}
+              className={tab === x.id ? 'btn-primary' : 'btn-secondary'}
+              onClick={() => setTab(x.id)}
+            >
+              {x.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {available.length === 0 && user && (
+        <p className="card text-slate-700">
+          The {user.role.replace(/_/g, ' ')} role has no panel here yet. Module 4 evidence access
+          is not built — see the README before building it.
         </p>
       )}
 
-      {queue.length === 0 ? (
-        <p className="text-slate-600">{t('noIssues')}</p>
-      ) : (
-        <ul className="space-y-3">
-          {queue.map((issue) => (
-            <li key={issue.id} className="card space-y-3">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <p className="font-medium">{issue.category_label}</p>
-                  {issue.description && <p className="text-sm text-slate-700">{issue.description}</p>}
-                  <p className="mt-1 text-xs text-slate-600">
-                    {t('dueBy')} {new Date(issue.sla_deadline).toLocaleString()}
-                  </p>
-                </div>
-                <StatusBadge status={issue.status} />
-              </div>
-
-              {issue.media_id && (
-                <ReportMedia
-                  mediaId={issue.media_id}
-                  kind={issue.media_kind}
-                  label={`Submitted ${issue.media_kind === 'video' ? 'video' : 'photo'} for the reported ${issue.category_label}`}
-                  className="max-h-48"
-                />
-              )}
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={busyId === issue.id || issue.status !== 'reported'}
-                  onClick={() => act(issue.id, 'acknowledge')}
-                >
-                  {t('acknowledge')}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  disabled={busyId === issue.id || issue.status === 'in_progress'}
-                  onClick={() => act(issue.id, 'start')}
-                >
-                  {t('startWork')}
-                </button>
-
-                <label
-                  htmlFor={`proof-${issue.id}`}
-                  className="btn-primary cursor-pointer"
-                  title={t('proofRequired')}
-                >
-                  {t('resolveWithProof')}
-                </label>
-                <input
-                  id={`proof-${issue.id}`}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="sr-only"
-                  disabled={busyId === issue.id}
-                  onChange={(e) => {
-                    const f = e.target.files?.[0]
-                    if (f) resolve(issue.id, f)
-                  }}
-                />
-              </div>
-              <p className="text-xs text-slate-600">{t('proofRequired')}</p>
-            </li>
-          ))}
-        </ul>
-      )}
+      {tab === 'infra' && <InfraQueue />}
+      {tab === 'violations' && <ViolationQueue />}
+      {tab === 'moderation' && <ModerationQueue />}
+      {tab === 'vigilance' && <VigilancePanel />}
     </div>
   )
 }

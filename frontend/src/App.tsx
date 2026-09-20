@@ -1,18 +1,23 @@
 import { NavLink, Route, Routes } from 'react-router-dom'
 
 import LanguagePicker from './components/LanguagePicker'
+import CorruptionFeed from './pages/CorruptionFeed'
+import CorruptionReport from './pages/CorruptionReport'
+import Home from './pages/Home'
 import IssueDetail from './pages/IssueDetail'
 import OfficerDashboard from './pages/OfficerDashboard'
 import OfficerLogin from './pages/OfficerLogin'
 import ReportIssue from './pages/ReportIssue'
 import StatusBoard from './pages/StatusBoard'
 import TrackIssue from './pages/TrackIssue'
+import ViolationReport from './pages/ViolationReport'
 import { useI18n } from './lib/i18n'
 
-function NavItem({ to, label }: { to: string; label: string }) {
+function NavItem({ to, label, end = false }: { to: string; label: string; end?: boolean }) {
   return (
     <NavLink
       to={to}
+      end={end}
       className={({ isActive }) =>
         `rounded-md px-3 py-2 text-sm font-medium ${
           isActive ? 'bg-civic-600 text-white' : 'text-slate-700 hover:bg-slate-200'
@@ -40,8 +45,10 @@ export default function App() {
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2 px-4 py-3">
           <span className="mr-auto text-lg font-semibold text-ink">{t('appName')}</span>
           <nav aria-label="Main" className="flex flex-wrap items-center gap-1">
-            <NavItem to="/" label={t('navBoard')} />
-            <NavItem to="/report" label={t('navReport')} />
+            <NavItem to="/" label={t('navHome')} end />
+            <NavItem to="/infrastructure" label={t('navBoard')} />
+            <NavItem to="/corruption" label={t('navCorruption')} />
+            <NavItem to="/violations/report" label={t('navViolations')} />
             <NavItem to="/track" label={t('navTrack')} />
             <NavItem to="/officer" label={t('navOfficer')} />
           </nav>
@@ -51,10 +58,22 @@ export default function App() {
 
       <main id="main" className="mx-auto max-w-5xl px-4 py-6">
         <Routes>
-          <Route path="/" element={<StatusBoard />} />
+          <Route path="/" element={<Home />} />
+
+          {/* Module 3 */}
+          <Route path="/infrastructure" element={<StatusBoard />} />
           <Route path="/report" element={<ReportIssue />} />
           <Route path="/track" element={<TrackIssue />} />
           <Route path="/issues/:issueId" element={<IssueDetail />} />
+
+          {/* Module 2 */}
+          <Route path="/corruption" element={<CorruptionFeed />} />
+          <Route path="/corruption/report" element={<CorruptionReport />} />
+
+          {/* Module 1 */}
+          <Route path="/violations/report" element={<ViolationReport />} />
+
+          {/* Officials */}
           <Route path="/officer" element={<OfficerLogin />} />
           <Route path="/officer/dashboard" element={<OfficerDashboard />} />
         </Routes>

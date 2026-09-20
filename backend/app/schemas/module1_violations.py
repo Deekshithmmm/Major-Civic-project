@@ -25,6 +25,7 @@ class ViolationCaseResponse(BaseModel):
     lat: float
     lng: float
     media_id: str
+    media_kind: str
     identity_path: IdentityPath
     resolved_plate_number: str | None
     status: ViolationCaseStatus

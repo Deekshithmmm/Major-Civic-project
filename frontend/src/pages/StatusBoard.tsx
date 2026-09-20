@@ -29,11 +29,16 @@ export default function StatusBoard() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h1 className="text-xl font-semibold text-ink">{t('boardTitle')}</h1>
-        <p className="text-sm text-slate-600">
-          {visible.length} {t('reportsCount')}
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-semibold text-ink">{t('boardTitle')}</h1>
+          <p className="text-sm text-slate-600">
+            {visible.length} {t('reportsCount')}
+          </p>
+        </div>
+        <Link to="/report" className="btn-primary">
+          {t('navReport')}
+        </Link>
       </div>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">
