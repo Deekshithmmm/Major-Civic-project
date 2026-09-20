@@ -173,6 +173,31 @@ const STRINGS = {
     kn: 'ಅಧಿಕಾರಿಗಳು ದೂರುಗಳನ್ನು ಪರಿಶೀಲಿಸಲು ಸೈನ್ ಇನ್ ಮಾಡುತ್ತಾರೆ. ನಾಗರಿಕರು ಎಂದಿಗೂ ಇಲ್ಲ.',
   },
 
+  homeCasesTitle: { en: 'Reported cases', hi: 'दर्ज मामले', kn: 'ವರದಿಯಾದ ಪ್ರಕರಣಗಳು' },
+  homeCasesIntro: {
+    en: 'Everything the public is allowed to see, newest first — the report, its photo or video, and where it has reached.',
+    hi: 'वह सब जो जनता देख सकती है, नवीनतम पहले — शिकायत, उसकी फ़ोटो या वीडियो, और वह कहाँ तक पहुँची।',
+    kn: 'ಸಾರ್ವಜನಿಕರು ನೋಡಬಹುದಾದ ಎಲ್ಲವೂ, ಹೊಸದು ಮೊದಲು — ದೂರು, ಅದರ ಫೋಟೋ ಅಥವಾ ವೀಡಿಯೊ, ಮತ್ತು ಅದು ಎಲ್ಲಿಗೆ ತಲುಪಿದೆ.',
+  },
+  homeCasesEmpty: { en: 'No public cases yet.', hi: 'अभी कोई सार्वजनिक मामला नहीं।', kn: 'ಇನ್ನೂ ಯಾವುದೇ ಸಾರ್ವಜನಿಕ ಪ್ರಕರಣವಿಲ್ಲ.' },
+  homeStatInfra: { en: 'Infrastructure reports', hi: 'अवसंरचना शिकायतें', kn: 'ಮೂಲಸೌಕರ್ಯ ದೂರುಗಳು' },
+  homeStatCorruption: { en: 'Published corruption reports', hi: 'प्रकाशित भ्रष्टाचार शिकायतें', kn: 'ಪ್ರಕಟಿತ ಭ್ರಷ್ಟಾಚಾರ ದೂರುಗಳು' },
+  homeStatViolations: { en: 'Violation cases awaiting an officer', hi: 'अधिकारी की प्रतीक्षा में उल्लंघन मामले', kn: 'ಅಧಿಕಾರಿಗಾಗಿ ಕಾಯುತ್ತಿರುವ ಉಲ್ಲಂಘನೆ ಪ್ರಕರಣಗಳು' },
+  homeStatEmergency: { en: 'Crime reports unacknowledged past deadline', hi: 'समय-सीमा के बाद अस्वीकृत अपराध शिकायतें', kn: 'ಗಡುವು ಮೀರಿ ಸ್ವೀಕರಿಸದ ಅಪರಾಧ ದೂರುಗಳು' },
+  homeNotShownTitle: { en: 'What is deliberately not shown here', hi: 'यहाँ जानबूझकर क्या नहीं दिखाया गया', kn: 'ಇಲ್ಲಿ ಉದ್ದೇಶಪೂರ್ವಕವಾಗಿ ಏನು ತೋರಿಸಿಲ್ಲ' },
+  homeNotShownViolations: {
+    en: 'Violation evidence. Until an officer confirms it, it is an unproven accusation against an identifiable person or vehicle, so only the counts are public.',
+    hi: 'उल्लंघन के साक्ष्य। जब तक कोई अधिकारी पुष्टि न करे, यह एक पहचान योग्य व्यक्ति या वाहन के विरुद्ध अप्रमाणित आरोप है, इसलिए केवल संख्याएँ सार्वजनिक हैं।',
+    kn: 'ಉಲ್ಲಂಘನೆ ಸಾಕ್ಷ್ಯ. ಅಧಿಕಾರಿ ದೃಢೀಕರಿಸುವವರೆಗೆ ಇದು ಗುರುತಿಸಬಹುದಾದ ವ್ಯಕ್ತಿ ಅಥವಾ ವಾಹನದ ವಿರುದ್ಧ ಸಾಬೀತಾಗದ ಆರೋಪ, ಆದ್ದರಿಂದ ಸಂಖ್ಯೆಗಳು ಮಾತ್ರ ಸಾರ್ವಜನಿಕ.',
+  },
+  homeNotShownCrime: {
+    en: 'Crime footage, in any form. Publishing it warns the people being investigated, destroys identification evidence, and exposes whoever filmed it. Station response is published instead.',
+    hi: 'किसी भी रूप में अपराध की फ़ुटेज। इसे प्रकाशित करना जाँच के दायरे में आए लोगों को सचेत करता है, पहचान संबंधी साक्ष्य नष्ट करता है, और फ़िल्म करने वाले को उजागर करता है। इसके बजाय थाने की प्रतिक्रिया प्रकाशित की जाती है।',
+    kn: 'ಯಾವುದೇ ರೂಪದಲ್ಲಿ ಅಪರಾಧ ದೃಶ್ಯಾವಳಿ. ಅದನ್ನು ಪ್ರಕಟಿಸುವುದು ತನಿಖೆಗೊಳಗಾದವರಿಗೆ ಎಚ್ಚರಿಕೆ ನೀಡುತ್ತದೆ, ಗುರುತಿನ ಸಾಕ್ಷ್ಯ ನಾಶಪಡಿಸುತ್ತದೆ, ಮತ್ತು ಚಿತ್ರೀಕರಿಸಿದವರನ್ನು ಬಹಿರಂಗಪಡಿಸುತ್ತದೆ. ಬದಲಿಗೆ ಠಾಣೆಯ ಸ್ಪಂದನೆ ಪ್ರಕಟಿಸಲಾಗುತ್ತದೆ.',
+  },
+  homeSeeLedger: { en: 'See how each station responds', hi: 'देखें प्रत्येक थाना कैसे प्रतिक्रिया देता है', kn: 'ಪ್ರತಿ ಠಾಣೆ ಹೇಗೆ ಸ್ಪಂದಿಸುತ್ತದೆ ಎಂದು ನೋಡಿ' },
+  homeOpenCase: { en: 'Open', hi: 'खोलें', kn: 'ತೆರೆಯಿರಿ' },
+
   // --- Nav ---
   navHome: { en: 'Home', hi: 'होम', kn: 'ಮುಖಪುಟ' },
   navCorruption: { en: 'Corruption', hi: 'भ्रष्टाचार', kn: 'ಭ್ರಷ್ಟಾಚಾರ' },

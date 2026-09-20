@@ -248,6 +248,15 @@ def main() -> int:
     check("no share card before the SLA is breached", not_overdue.status_code == 400, str(not_overdue.status_code))
 
     print("\n== Module 1: officer review, no auto-fine ==")
+    stats = requests.get(f"{BASE}/api/violations/stats", timeout=10)
+    check("violation counts are public without an account", stats.status_code == 200, str(stats.status_code))
+    check(
+        "public violation stats carry no evidence, location or plate",
+        stats.status_code != 200
+        or set(stats.json()) == {"pending_review", "confirmed", "dismissed", "challans_issued"},
+        str(list(stats.json()) if stats.status_code == 200 else ""),
+    )
+
     cases = requests.get(f"{BASE}/api/violations/officer/queue", headers=officer_h, timeout=10).json()
     check("violation cases await officer review", len(cases) >= 1, f"got {len(cases)}")
     check("nothing is auto-confirmed", all(c["status"] == "pending_review" for c in cases))

@@ -33,6 +33,21 @@ class ViolationCaseResponse(BaseModel):
     created_at: datetime
 
 
+class ViolationStatsResponse(BaseModel):
+    """
+    Counts only, deliberately. A violation case is an unconfirmed accusation against an
+    identifiable person or vehicle, so its evidence, location and any resolved plate stay
+    officer-only (spec: names, faces, vehicle numbers and addresses of anyone accused are never
+    public, at any stage). What the public gets is whether officers are actually working the
+    queue.
+    """
+
+    pending_review: int
+    confirmed: int
+    dismissed: int
+    challans_issued: int
+
+
 class ReclassifyRequest(BaseModel):
     new_violation_class_slug: str
 

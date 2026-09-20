@@ -35,6 +35,7 @@ from app.schemas.module1_violations import (
     ReclassifyRequest,
     ViolationCaseResponse,
     ViolationClassResponse,
+    ViolationStatsResponse,
 )
 from app.services.media_pipeline import IMAGE_CONTENT_TYPES, VIDEO_CONTENT_TYPES, process_and_store
 from app.services.notifications import send_email, send_sms
@@ -67,6 +68,18 @@ def _case_to_response(case: ViolationCase) -> ViolationCaseResponse:
 @router.get("/classes", response_model=list[ViolationClassResponse])
 def list_violation_classes(db: Session = Depends(get_db)):
     return db.execute(select(ViolationClassConfig).order_by(ViolationClassConfig.label)).scalars().all()
+
+
+@router.get("/stats", response_model=ViolationStatsResponse)
+def public_stats(db: Session = Depends(get_db)):
+    """Public aggregate. Never returns evidence, location or a plate - see the schema docstring."""
+    cases = db.execute(select(ViolationCase)).scalars().all()
+    return ViolationStatsResponse(
+        pending_review=len([c for c in cases if c.status == ViolationCaseStatus.PENDING_REVIEW]),
+        confirmed=len([c for c in cases if c.status == ViolationCaseStatus.CONFIRMED]),
+        dismissed=len([c for c in cases if c.status == ViolationCaseStatus.DISMISSED]),
+        challans_issued=len(db.execute(select(Challan)).scalars().all()),
+    )
 
 
 @router.post("/citizen/upload", response_model=ViolationCaseResponse, status_code=status.HTTP_201_CREATED)
