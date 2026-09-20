@@ -97,7 +97,7 @@ const STRINGS = {
   people: { en: 'people', hi: 'लोग', kn: 'ಜನರು' },
 
   trackTitle: { en: 'Track your report', hi: 'अपनी शिकायत ट्रैक करें', kn: 'ನಿಮ್ಮ ದೂರು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ' },
-  trackPlaceholder: { en: 'Paste your tracking code', hi: 'अपना ट्रैकिंग कोड पेस्ट करें', kn: 'ನಿಮ್ಮ ಟ್ರ್ಯಾಕಿಂಗ್ ಕೋಡ್ ಅಂಟಿಸಿ' },
+  trackPlaceholder: { en: 'Enter your 10-digit code', hi: 'अपना 10 अंकों का कोड दर्ज करें', kn: 'ನಿಮ್ಮ 10 ಅಂಕಿಯ ಕೋಡ್ ನಮೂದಿಸಿ' },
   trackButton: { en: 'Check status', hi: 'स्थिति देखें', kn: 'ಸ್ಥಿತಿ ಪರಿಶೀಲಿಸಿ' },
   trackNotFound: { en: 'No report found for that code.', hi: 'उस कोड के लिए कोई शिकायत नहीं मिली।', kn: 'ಆ ಕೋಡ್‌ಗೆ ಯಾವುದೇ ದೂರು ಕಂಡುಬಂದಿಲ್ಲ.' },
 

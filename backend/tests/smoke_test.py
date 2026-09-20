@@ -13,6 +13,7 @@ resolution, role separation, and the append-only audit log.
 
 import io
 import random
+import re
 import subprocess
 import sys
 import tempfile
@@ -115,11 +116,17 @@ def main() -> int:
     check("anonymous citizen report accepted (no auth header sent)", res.status_code == 201, res.text[:200])
     created = res.json()
     token = created["tracking_token"]
-    check("tracking token issued", bool(token))
+    check("tracking code issued", bool(token))
+    check("tracking code is 10 digits with no leading zero", bool(re.fullmatch(r"[1-9]\d{9}", token)), token)
     check("first report is not merged", created["merged_into_existing"] is False)
 
     detail = requests.get(f"{BASE}/api/infra/issues/track/{token}", timeout=10).json()
-    check("tracking token resolves to the report", detail["category_slug"] == "pothole")
+    check("tracking code resolves to the report", detail["category_slug"] == "pothole")
+
+    spaced = f"{token[:4]} {token[4:7]} {token[7:]}"  # the grouping the UI displays
+    spaced_res = requests.get(f"{BASE}/api/infra/issues/track/{spaced}", timeout=10)
+    check("code typed with spaces still resolves", spaced_res.status_code == 200, str(spaced_res.status_code))
+
     check("status history recorded", len(detail["history"]) >= 1)
 
     print("\n== Privacy: EXIF stripped before storage (spec 2.6) ==")

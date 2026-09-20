@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import LocationPicker from '../components/LocationPicker'
+import TrackingCode from '../components/TrackingCode'
 import {
   ApiError,
   apiGet,
@@ -27,7 +28,6 @@ export default function ReportIssue() {
   const processing = progress === 100
   const [result, setResult] = useState<IssueCreateResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     apiGet<IssueCategory[]>('/api/infra/categories')
@@ -80,21 +80,8 @@ export default function ReportIssue() {
         {result.merged_into_existing && (
           <p className="mt-2 rounded-md bg-sky-50 p-3 text-sm text-sky-900">{t('mergedNotice')}</p>
         )}
-        <p className="mt-4 field-label">{t('trackingToken')}</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <code className="select-all break-all rounded bg-slate-100 px-2 py-1 font-mono text-sm">
-            {result.tracking_token}
-          </code>
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => {
-              navigator.clipboard.writeText(result.tracking_token)
-              setCopied(true)
-            }}
-          >
-            {copied ? t('copied') : t('copy')}
-          </button>
+        <div className="mt-4">
+          <TrackingCode token={result.tracking_token} label={t('trackingToken')} />
         </div>
         <p className="mt-2 text-sm text-slate-600">{t('trackingHelp')}</p>
         <p className="mt-4 text-sm text-slate-600">

@@ -17,7 +17,9 @@ export default function TrackIssue() {
     setIssue(null)
     setLoading(true)
     try {
-      setIssue(await apiGet<IssueDetail>(`/api/infra/issues/track/${encodeURIComponent(token.trim())}`))
+      // Accept the code typed with the spacing it is displayed in ("4821 903 577").
+      const code = token.replace(/\s/g, '')
+      setIssue(await apiGet<IssueDetail>(`/api/infra/issues/track/${encodeURIComponent(code)}`))
     } catch (err) {
       setError(err instanceof ApiError && err.status === 404 ? t('trackNotFound') : t('errorGeneric'))
     } finally {
@@ -36,7 +38,9 @@ export default function TrackIssue() {
           </label>
           <input
             id="token"
-            className="field-input"
+            className="field-input font-mono tracking-wide"
+            inputMode="numeric"
+            autoComplete="off"
             placeholder={t('trackPlaceholder')}
             value={token}
             onChange={(e) => setToken(e.target.value)}

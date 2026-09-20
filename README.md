@@ -112,7 +112,7 @@ With the stack running and freshly seeded:
 cd backend && python -m tests.smoke_test
 ```
 
-46 checks covering the guarantees that actually matter — EXIF stripping verified on the stored
+48 checks covering the guarantees that actually matter — EXIF stripping verified on the stored
 photo, GPS/device tags and audio verified gone from the stored video, 50m duplicate clustering, role separation (moderator refused Module 1, municipal officer
 refused Module 2), proof-gated resolution, SLA breach + shareable card, officer-confirmed
 challans with the fine ladder read from config, appeal separation of duties, and the
@@ -120,7 +120,7 @@ police-personnel routing rule that must never notify local police.
 
 It's safe to re-run without resetting — it picks a fresh map location each time so it never
 collides with its own earlier data, and skips the challan flow if a previous run already
-confirmed the one seeded ANPR case (42 passed / 1 skipped instead of 46). For the full set,
+confirmed the one seeded ANPR case (44 passed / 1 skipped instead of 48). For the full set,
 reset first:
 
 ```bash
@@ -155,6 +155,12 @@ frontend/src/
   flagged in the Module 4 stub.
 - **SLA config and fine ladders live in DB tables, not code**, per the spec's explicit requirement
   that penalty amounts and deadlines are municipal by-law decisions, not constants.
+- **Module 3 tracking codes are 10 digits; Module 2 and 4 tokens are not.** A citizen reads a
+  Module 3 code off a screen and types it back, and it is printed on the public status board
+  anyway, so it is a lookup handle rather than a credential — it reveals nothing that
+  `GET /api/infra/issues/{id}` doesn't already return to anyone. Module 2 and Module 4 keep
+  high-entropy random tokens, because there the token is the reporter's only protection and a
+  guessable one would let anyone enumerate whistleblower reports. Don't unify these.
 - **Run uvicorn with `--no-access-log`.** Modules 2 and 4 require that the uploader's IP is never
   persisted anywhere, including logs. Uvicorn's default access log records the client IP for every
   request, which would silently violate that. There's no per-route way to suppress it, so it's

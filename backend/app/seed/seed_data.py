@@ -44,6 +44,7 @@ from app.models.module3_infra import (
 from app.models.officials import ResponsibleDesk
 from app.models.users import User, UserRole
 from app.services.sla import compute_sla_deadline
+from app.services.tracking import new_tracking_code
 from app.services.storage import ensure_buckets, put_object
 
 DEV_PASSWORD = "DevPassword123!"
@@ -320,7 +321,7 @@ def seed_sample_infra_issues(db: Session, wards: dict[str, Ward], categories: di
             location=f"SRID=4326;POINT({lng} {lat})",
             ward_id=ward.id,
             media_id=media_id,
-            tracking_token=secrets.token_urlsafe(24),
+            tracking_token=new_tracking_code(db),
             sla_deadline=sla_deadline,
             status=target_status,
         )

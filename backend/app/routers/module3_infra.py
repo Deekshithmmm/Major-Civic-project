@@ -40,6 +40,7 @@ from app.services.media_pipeline import IMAGE_CONTENT_TYPES, VIDEO_CONTENT_TYPES
 from app.services.notifications import send_email
 from app.services.sla import compute_sla_deadline, mark_overdue_issues
 from app.services.storage import media_kind
+from app.services.tracking import new_tracking_code, normalise_tracking_code
 
 router = APIRouter(prefix="/api/infra", tags=["module3-infrastructure"])
 
@@ -138,7 +139,7 @@ def create_issue(
             merged_into_existing=True,
         )
 
-    tracking_token = secrets.token_urlsafe(24)
+    tracking_token = new_tracking_code(db)
     contact_token = secrets.token_urlsafe(32) if phone_number else None
     issue = InfrastructureIssue(
         category_id=category.id,
@@ -204,7 +205,9 @@ def list_public_issues(
 @router.get("/issues/track/{tracking_token}", response_model=IssueDetailResponse)
 def track_issue(tracking_token: str, db: Session = Depends(get_db)):
     issue = db.execute(
-        select(InfrastructureIssue).where(InfrastructureIssue.tracking_token == tracking_token)
+        select(InfrastructureIssue).where(
+            InfrastructureIssue.tracking_token == normalise_tracking_code(tracking_token)
+        )
     ).scalars().first()
     if not issue:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No issue found for that tracking token")
