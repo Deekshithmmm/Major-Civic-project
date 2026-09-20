@@ -48,7 +48,7 @@ export default function App() {
           <span className="mr-auto text-lg font-semibold text-ink">{t('appName')}</span>
           <nav aria-label="Main" className="flex flex-wrap items-center gap-1">
             <NavItem to="/" label={t('navHome')} end />
-            <NavItem to="/infrastructure" label={t('navBoard')} />
+            <NavItem to="/infrastructure" label={t('infraTitle')} />
             <NavItem to="/corruption" label={t('navCorruption')} />
             <NavItem to="/violations/report" label={t('navViolations')} />
             <NavItem to="/emergency" label={t('navEmergency')} />

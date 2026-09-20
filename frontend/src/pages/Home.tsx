@@ -22,7 +22,7 @@ export default function Home() {
   const cards: Card[] = [
     {
       to: '/infrastructure',
-      title: t('homeInfraTitle'),
+      title: t('infraTitle'),
       body: t('homeInfraBody'),
       cta: t('navBoard'),
       tone: 'civic',

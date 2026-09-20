@@ -140,7 +140,7 @@ const STRINGS = {
     hi: 'नागरिक समस्याएँ, भ्रष्टाचार और उल्लंघन दर्ज करें। किसी खाते की आवश्यकता नहीं, और शिकायतें डिफ़ॉल्ट रूप से गुमनाम हैं।',
     kn: 'ನಾಗರಿಕ ಸಮಸ್ಯೆಗಳು, ಭ್ರಷ್ಟಾಚಾರ ಮತ್ತು ಉಲ್ಲಂಘನೆಗಳನ್ನು ವರದಿ ಮಾಡಿ. ಖಾತೆ ಅಗತ್ಯವಿಲ್ಲ, ಮತ್ತು ದೂರುಗಳು ಪೂರ್ವನಿಯೋಜಿತವಾಗಿ ಅನಾಮಧೇಯ.',
   },
-  homeInfraTitle: { en: 'Civic infrastructure', hi: 'नागरिक अवसंरचना', kn: 'ನಾಗರಿಕ ಮೂಲಸೌಕರ್ಯ' },
+  infraTitle: { en: 'Civic infrastructure', hi: 'नागरिक अवसंरचना', kn: 'ನಾಗರಿಕ ಮೂಲಸೌಕರ್ಯ' },
   homeInfraBody: {
     en: 'Potholes, street lights, drains, garbage, water leaks. Routed to the responsible desk with a deadline, and tracked publicly.',
     hi: 'गड्ढे, स्ट्रीट लाइट, नालियाँ, कचरा, पानी का रिसाव। समय-सीमा के साथ ज़िम्मेदार विभाग को भेजा जाता है और सार्वजनिक रूप से ट्रैक किया जाता है।',
