@@ -43,6 +43,7 @@ from app.schemas.module4_emergency import (
     StationReportResponse,
     SupportResource,
 )
+from app.security import max_bytes_for, rate_limit, read_upload
 from app.services.evidence_vault import evidence_url, seal, store_evidence
 from app.services.jurisdiction import resolve_ward
 from app.services.media_pipeline import IMAGE_CONTENT_TYPES, VIDEO_CONTENT_TYPES, process_and_store
@@ -87,11 +88,16 @@ def list_routing_rules(db: Session = Depends(get_db)):
     return db.execute(select(EmergencyReportRoutingRule)).scalars().all()
 
 
-@router.post("/reports", response_model=ReportCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/reports",
+    response_model=ReportCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("emergency_report", limit=15, window_seconds=3600))],
+)
 def submit_report(
     category: OffenceCategory = Form(...),
-    lat: float = Form(...),
-    lng: float = Form(...),
+    lat: float = Form(..., ge=-90, le=90),
+    lng: float = Form(..., ge=-180, le=180),
     geohash: str = Form(...),
     file: UploadFile | None = File(None),
     db: Session = Depends(get_db),
@@ -135,7 +141,7 @@ def submit_report(
                 ),
             )
 
-        data = file.file.read()
+        data = read_upload(file, max_bytes_for(content_type))
         # Sealed BEFORE any processing: a hash taken after the server re-encoded the file proves
         # nothing about what was submitted (spec 2.5, step 1).
         evidence_hash = seal(data)
@@ -242,11 +248,27 @@ def _station_report(report: EmergencyReport) -> StationReportResponse:
     )
 
 
+def _require_jurisdiction(user: User, report: EmergencyReport) -> None:
+    """
+    An investigating officer is scoped to a jurisdiction (spec 2.6). Without this, any one of
+    them could open evidence for every case in the city, which is the opposite of the separation
+    this module exists to enforce. Admin is exempt so the system stays administrable.
+    """
+    if user.role == UserRole.ADMIN or user.jurisdiction_ward_id is None:
+        return
+    if report.ward_id != user.jurisdiction_ward_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This report is outside your jurisdiction.",
+        )
+
+
 @router.get("/officer/queue", response_model=list[StationReportResponse])
 def officer_queue(user: User = Depends(investigating_officer), db: Session = Depends(get_db)):
-    reports = db.execute(
-        select(EmergencyReport).order_by(EmergencyReport.created_at.desc())
-    ).scalars().all()
+    stmt = select(EmergencyReport).order_by(EmergencyReport.created_at.desc())
+    if user.role != UserRole.ADMIN and user.jurisdiction_ward_id is not None:
+        stmt = stmt.where(EmergencyReport.ward_id == user.jurisdiction_ward_id)
+    reports = db.execute(stmt).scalars().all()
     return [_station_report(r) for r in reports]
 
 
@@ -346,6 +368,7 @@ def access_evidence(
     report = db.get(EmergencyReport, report_id)
     if not report or not report.media_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No evidence held for that report")
+    _require_jurisdiction(user, report)
 
     db.add(
         ChainOfCustodyEntry(

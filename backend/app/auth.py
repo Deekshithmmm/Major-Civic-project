@@ -6,9 +6,9 @@ anywhere"). Every citizen-facing endpoint in this codebase must never depend on
 
 from datetime import datetime, timedelta, timezone
 
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -30,8 +30,13 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(user_id: str, role: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
-    payload = {"sub": user_id, "role": role, "exp": expire}
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": user_id,
+        "role": role,
+        "iat": now,
+        "exp": now + timedelta(minutes=settings.jwt_expire_minutes),
+    }
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 
@@ -42,11 +47,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+        # algorithms is an allowlist: without it a token could name its own algorithm, which is
+        # how "alg: none" and HMAC-vs-RSA confusion attacks get in.
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
         user_id = payload.get("sub")
         if user_id is None:
             raise credentials_exception
-    except JWTError:
+    except jwt.PyJWTError:
         raise credentials_exception
 
     user = db.get(User, user_id)

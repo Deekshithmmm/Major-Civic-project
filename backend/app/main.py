@@ -1,8 +1,10 @@
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.config import get_settings
 from app.routers import (
     auth,
     module1_violations,
@@ -11,9 +13,18 @@ from app.routers import (
     module4_emergency,
     public,
 )
+from app.security import security_headers_middleware
 from app.services.storage import ensure_buckets
 
 logging.basicConfig(level=logging.INFO)
+settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    ensure_buckets()
+    yield
+
 
 app = FastAPI(
     title="Civic Accountability Platform API",
@@ -24,14 +35,22 @@ app = FastAPI(
         "minor is refused outright - see docs/spec-summary.md."
     ),
     version="0.1.0",
+    lifespan=lifespan,
+    # The schema names every route, including the officer-only ones, and is an inventory for
+    # anyone probing the deployment. Useful locally, not something to publish.
+    docs_url="/docs" if settings.is_development else None,
+    redoc_url="/redoc" if settings.is_development else None,
+    openapi_url="/openapi.json" if settings.is_development else None,
 )
+
+app.middleware("http")(security_headers_middleware)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=settings.cors_origin_list,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Device-Id"],
 )
 
 app.include_router(auth.router)
@@ -40,11 +59,6 @@ app.include_router(module1_violations.router)
 app.include_router(module2_corruption.router)
 app.include_router(module4_emergency.router)
 app.include_router(public.router)
-
-
-@app.on_event("startup")
-def on_startup() -> None:
-    ensure_buckets()
 
 
 @app.get("/health")

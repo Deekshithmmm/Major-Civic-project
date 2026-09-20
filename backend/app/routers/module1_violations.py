@@ -37,6 +37,7 @@ from app.schemas.module1_violations import (
     ViolationClassResponse,
     ViolationStatsResponse,
 )
+from app.security import max_bytes_for, rate_limit, read_upload
 from app.services.media_pipeline import IMAGE_CONTENT_TYPES, VIDEO_CONTENT_TYPES, process_and_store
 from app.services.notifications import send_email, send_sms
 from app.services.storage import media_kind
@@ -82,11 +83,16 @@ def public_stats(db: Session = Depends(get_db)):
     )
 
 
-@router.post("/citizen/upload", response_model=ViolationCaseResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/citizen/upload",
+    response_model=ViolationCaseResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("violation_upload", limit=20, window_seconds=3600))],
+)
 def citizen_upload(
     violation_class_slug: str = Form(...),
-    lat: float = Form(...),
-    lng: float = Form(...),
+    lat: float = Form(..., ge=-90, le=90),
+    lng: float = Form(..., ge=-180, le=180),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -108,7 +114,7 @@ def citizen_upload(
     if content_type not in IMAGE_CONTENT_TYPES | VIDEO_CONTENT_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported file type")
 
-    data = file.file.read()
+    data = read_upload(file, max_bytes_for(content_type))
     processed = process_and_store(data, content_type, key_prefix="module1/citizen")
 
     case = ViolationCase(

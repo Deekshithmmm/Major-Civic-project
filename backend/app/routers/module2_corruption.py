@@ -36,6 +36,7 @@ from app.schemas.module2_corruption import (
     ReportStatusResponse,
     RoutingRuleResponse,
 )
+from app.security import max_bytes_for, rate_limit, read_upload
 from app.services.media_pipeline import IMAGE_CONTENT_TYPES, VIDEO_CONTENT_TYPES, process_and_store
 from app.services.storage import media_kind
 from app.services.notifications import send_email
@@ -65,7 +66,13 @@ def list_routing_rules(db: Session = Depends(get_db)):
     return db.execute(select(RoutingRule)).scalars().all()
 
 
-@router.post("/reports", response_model=ReportCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/reports",
+    response_model=ReportCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    # Spec 2.3: rate-limit and fingerprint uploads at device level, not identity level.
+    dependencies=[Depends(rate_limit("corruption_report", limit=10, window_seconds=3600))],
+)
 def submit_report(
     accused_department: str = Form(...),
     accused_designation: str = Form(...),
@@ -83,7 +90,7 @@ def submit_report(
     if content_type not in IMAGE_CONTENT_TYPES | VIDEO_CONTENT_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported file type")
 
-    data = file.file.read()
+    data = read_upload(file, max_bytes_for(content_type))
     processed = process_and_store(data, content_type, key_prefix="module2")
 
     tracking_token = secrets.token_urlsafe(24)

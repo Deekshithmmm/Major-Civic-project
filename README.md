@@ -107,7 +107,7 @@ With the stack running and freshly seeded:
 cd backend && python -m tests.smoke_test
 ```
 
-77 checks covering the guarantees that actually matter, across all four modules: EXIF
+90 checks covering the guarantees that actually matter, across all four modules: EXIF
 stripping verified on the stored photo, GPS/device tags and audio verified gone from the stored
 video, 50m duplicate clustering, proof-gated resolution, SLA breach + shareable card,
 officer-confirmed challans with the fine ladder read from config, appeal separation of duties,
@@ -121,7 +121,7 @@ and every Module 4 route, and a municipal officer is refused Module 2 reports.
 
 It's safe to re-run without resetting — it picks a fresh map location each time so it never
 collides with its own earlier data, and skips the challan flow if a previous run already
-confirmed the one seeded ANPR case (73 passed / 1 skipped instead of 77). For the full set,
+confirmed the one seeded ANPR case (86 passed / 1 skipped instead of 90). For the full set,
 reset first:
 
 ```bash
@@ -172,6 +172,54 @@ frontend/src/
   request, which would silently violate that. There's no per-route way to suppress it, so it's
   disabled server-wide. If you add a reverse proxy in front of this in a real deployment, make sure
   its access logs exclude `/api/corruption/*` too.
+
+## Security
+
+Dependencies are checked with `pip-audit` (backend) and `npm audit` (frontend); both report zero
+known vulnerabilities as of the last pass. Re-run them before any deployment — the biggest risk
+in a project like this is not an exotic bug, it is shipping a months-old image parser.
+
+```bash
+cd backend && python -m pip_audit
+cd frontend && npm audit
+```
+
+What is enforced in code:
+
+- **Startup refuses an insecure production config.** With `ENV` set to anything but
+  `development`, the app will not boot on the default or a short `JWT_SECRET`, or on a wildcard
+  CORS origin. A deployment that forgot to set a secret would otherwise look perfectly healthy
+  while anyone who read this repo could sign a token as admin.
+- **API docs and the OpenAPI schema are served only in development.** They are a route inventory.
+- **Uploads are size-capped and read in chunks** (`MAX_IMAGE_UPLOAD_MB`, `MAX_VIDEO_UPLOAD_MB`).
+  Every upload route processes the file in memory, so an unbounded read is a one-request denial
+  of service.
+- **Rate limits** on login (brute force) and on every anonymous submission route. The limiter
+  never stores an IP: the key is a hash of IP + user agent + a salt generated at process start,
+  kept in memory only, because Modules 2 and 4 promise the uploader's IP is never persisted and a
+  rate-limit table keyed by IP would quietly be exactly that. Counters are per-process, so a real
+  deployment should also rate-limit at the gateway.
+- **Security headers** on every API response: `nosniff`, `DENY` framing, no referrer, a
+  `default-src 'none'` CSP, `no-store`, and HSTS outside development. The frontend is served from
+  a different origin and needs its own.
+- **Coordinates are bounds-checked** before they reach PostGIS, and the media route only accepts
+  keys matching the pattern this service generates — it cannot be used to probe for other objects
+  or to smuggle traversal sequences.
+- **JWTs** are verified with an explicit algorithm allowlist, so neither `alg: none` nor a token
+  signed with a different algorithm is accepted. Tokens expire in an hour.
+- **Investigating officers are scoped to their jurisdiction** for Module 4 queues and evidence.
+- **Seeding refuses to run outside development** — the demo accounts share a password printed in
+  this file.
+
+Known weaknesses, not yet addressed:
+
+- **The officer token lives in `localStorage`**, so any successful XSS on the frontend can take
+  it. httpOnly cookies plus CSRF protection would be the fix.
+- **No account lockout or second factor** for officials; rate limiting is the only brute-force
+  control.
+- **Module 4's separation is enforced in application code**, not by bucket policy or per-report
+  encryption keys.
+- Everything runs over plain HTTP locally. TLS termination is assumed to be in front.
 
 ## Known gaps and things not yet verified
 

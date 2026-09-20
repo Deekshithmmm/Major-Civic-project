@@ -35,6 +35,7 @@ from app.schemas.module3_infra import (
     IssueStatusHistoryItem,
     ShareableCardResponse,
 )
+from app.security import max_bytes_for, rate_limit, read_upload
 from app.services.jurisdiction import resolve_responsible_desk, resolve_ward
 from app.services.media_pipeline import IMAGE_CONTENT_TYPES, VIDEO_CONTENT_TYPES, process_and_store
 from app.services.notifications import send_email
@@ -71,12 +72,17 @@ def list_categories(db: Session = Depends(get_db)):
     return db.execute(select(IssueCategory).order_by(IssueCategory.label)).scalars().all()
 
 
-@router.post("/issues", response_model=IssueCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/issues",
+    response_model=IssueCreateResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("infra_report", limit=20, window_seconds=3600))],
+)
 def create_issue(
     category_slug: str = Form(...),
     description: str | None = Form(None),
-    lat: float = Form(...),
-    lng: float = Form(...),
+    lat: float = Form(..., ge=-90, le=90),
+    lng: float = Form(..., ge=-180, le=180),
     phone_number: str | None = Form(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -94,7 +100,7 @@ def create_issue(
     if content_type not in IMAGE_CONTENT_TYPES | VIDEO_CONTENT_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Unsupported file type")
 
-    data = file.file.read()
+    data = read_upload(file, max_bytes_for(content_type))
     processed = process_and_store(data, content_type, key_prefix="module3")
 
     point_wkt = f"SRID=4326;POINT({lng} {lat})"
@@ -326,7 +332,7 @@ def resolve_issue(
     if content_type not in IMAGE_CONTENT_TYPES:
         raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Proof must be a photo")
 
-    data = proof_file.file.read()
+    data = read_upload(proof_file, max_bytes_for(content_type))
     processed = process_and_store(data, content_type, key_prefix="module3/resolution_proof")
 
     issue.resolution_proof_media_id = processed.media_id

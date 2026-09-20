@@ -437,6 +437,71 @@ def main() -> int:
     this_quarter = f"{datetime.now(timezone.utc).year} Q{(datetime.now(timezone.utc).month - 1) // 3 + 1}"
     check("hotspot map runs a quarter behind", all(cell["quarter"] != this_quarter for cell in hotspots))
 
+    print("\n== Security controls ==")
+    headers = requests.get(f"{BASE}/health", timeout=10).headers
+    check("responses set X-Content-Type-Options", headers.get("X-Content-Type-Options") == "nosniff")
+    check("responses refuse framing", headers.get("X-Frame-Options") == "DENY")
+    check("responses send no referrer", headers.get("Referrer-Policy") == "no-referrer")
+    check("responses carry a content security policy", "default-src 'none'" in headers.get("Content-Security-Policy", ""))
+    check("API responses are not cacheable by shared caches", "no-store" in headers.get("Cache-Control", ""))
+
+    oversize = requests.post(
+        f"{BASE}/api/infra/issues",
+        files={"file": ("big.jpg", b"\xff\xd8\xff" + b"\0" * (16 * 1024 * 1024), "image/jpeg")},
+        data={"category_slug": "pothole", "lat": str(TEST_LAT), "lng": str(TEST_LNG)},
+        timeout=120,
+    )
+    check("an oversized upload is refused, not loaded into memory", oversize.status_code == 413, str(oversize.status_code))
+
+    bad_coords = requests.post(
+        f"{BASE}/api/infra/issues",
+        files={"file": ("x.jpg", make_jpeg_with_gps_exif(), "image/jpeg")},
+        data={"category_slug": "pothole", "lat": "999", "lng": "0"},
+        timeout=60,
+    )
+    check("out-of-range coordinates are rejected", bad_coords.status_code == 422, str(bad_coords.status_code))
+
+    for probe in ("../../etc/passwd", "module3/not-a-key", "../civic-evidence-vault/x.jpg"):
+        r = requests.get(f"{BASE}/api/media/{probe}", timeout=10, allow_redirects=False)
+        check(f"media route rejects '{probe[:28]}'", r.status_code == 404, str(r.status_code))
+
+    from starlette.requests import Request as StarletteRequest
+
+    from app.config import DEV_JWT_SECRET, Settings
+    from app.security import rate_limit
+
+    dummy = StarletteRequest({"type": "http", "headers": [(b"user-agent", b"smoke")], "client": ("203.0.113.9", 1)})
+    limiter = rate_limit("smoke_probe", limit=2, window_seconds=60)
+    limiter(dummy)
+    limiter(dummy)
+    try:
+        limiter(dummy)
+        check("rate limiter blocks a burst past its limit", False, "third call was allowed")
+    except Exception as exc:  # HTTPException
+        check("rate limiter blocks a burst past its limit", getattr(exc, "status_code", None) == 429, str(exc))
+
+    try:
+        Settings(env="production", jwt_secret=DEV_JWT_SECRET)
+        check("startup refuses the default JWT secret outside development", False, "it was accepted")
+    except Exception:
+        check("startup refuses the default JWT secret outside development", True)
+
+    out_of_area = requests.post(
+        f"{BASE}/api/emergency/reports",
+        data={"category": "narcotics", "lat": "12.9750", "lng": "77.5950", "geohash": "tdr1x"},
+        files={"file": ("e.jpg", make_jpeg_with_gps_exif(), "image/jpeg")},
+        timeout=60,
+    )
+    if out_of_area.status_code == 201:
+        all_reports = requests.get(f"{BASE}/api/emergency/officer/queue", headers=inv_h, timeout=10).json()
+        foreign = [r for r in all_reports if r["has_evidence"]]
+        check(
+            "an investigating officer's queue only shows their own jurisdiction",
+            all(r["id"] != out_of_area.json().get("id") for r in foreign),
+        )
+    else:
+        skip("jurisdiction scoping", f"setup report failed ({out_of_area.status_code})")
+
     summary = f"  {passed} passed, {failed} failed" + (f", {skipped} skipped" if skipped else "")
     print(f"\n{'=' * 52}\n{summary}\n{'=' * 52}\n")
     return 1 if failed else 0

@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import hash_password
+from app.config import get_settings
 from app.database import Base, SessionLocal, engine
 from app.models.jurisdiction import Ward
 from app.models.module1_violations import (
@@ -121,7 +122,9 @@ USERS = [
     ("engineer.sanitation@demo.city", "S. Iyer (Dept Engineer)", UserRole.DEPARTMENT_ENGINEER, None),
     ("moderator@demo.city", "M. Rao (Moderator)", UserRole.MODERATOR, None),
     ("vigilance@demo.city", "V. Nair (Vigilance Officer)", UserRole.VIGILANCE_OFFICER, None),
-    ("investigator@demo.city", "I. Sharma (Investigating Officer)", UserRole.INVESTIGATING_OFFICER, None),
+    # Riverside: the ward holding the seeded report with sealed evidence, so the
+    # jurisdiction-scoped evidence flow can actually be demonstrated.
+    ("investigator@demo.city", "I. Sharma (Investigating Officer)", UserRole.INVESTIGATING_OFFICER, "Riverside Ward"),
 ]
 
 
@@ -405,12 +408,18 @@ def seed_users(db: Session, wards: dict[str, Ward]) -> dict[str, User]:
         if existing:
             users[email] = existing
             continue
+        if role == UserRole.ADMIN:
+            assigned_ward = None
+        elif dept and dept in wards:
+            assigned_ward = wards[dept].id
+        else:
+            assigned_ward = ward_ids[i % len(ward_ids)].id
         user = User(
             email=email,
             full_name=name,
             hashed_password=hash_password(DEV_PASSWORD),
             role=role,
-            jurisdiction_ward_id=ward_ids[i % len(ward_ids)].id if role != UserRole.ADMIN else None,
+            jurisdiction_ward_id=assigned_ward,
         )
         db.add(user)
         users[email] = user
@@ -543,6 +552,14 @@ def seed_sample_corruption_reports(db: Session) -> None:
 
 
 def main() -> None:
+    # These accounts share a password that is printed below and documented in the README. Seeding
+    # a real environment would hand anyone who read either an officer login.
+    if not get_settings().is_development:
+        raise SystemExit(
+            f"Refusing to seed demo accounts with ENV={get_settings().env}. "
+            "Seed data is for local development only."
+        )
+
     Base.metadata.create_all(bind=engine)  # safety net; alembic upgrade head is the real source of truth
     db = SessionLocal()
     try:

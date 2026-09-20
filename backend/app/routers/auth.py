@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import create_access_token, get_current_user, verify_password
+from app.security import rate_limit
 from app.database import get_db
 from app.models.audit import AuditAction, AuditLogEntry
 from app.models.users import User
@@ -11,7 +12,11 @@ from app.schemas.auth import CurrentUserResponse, LoginRequest, TokenResponse
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    dependencies=[Depends(rate_limit("login", limit=10, window_seconds=600))],
+)
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.execute(select(User).where(User.email == payload.email)).scalars().first()
     if not user or not user.is_active or not verify_password(payload.password, user.hashed_password):
