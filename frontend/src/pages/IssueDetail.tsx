@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
+import ReportMedia from '../components/ReportMedia'
 import StatusBadge from '../components/StatusBadge'
 import TrackingCode from '../components/TrackingCode'
 import { apiGet, type IssueDetail as IssueDetailType, type ShareableCard } from '../lib/api'
@@ -41,13 +42,16 @@ export default function IssueDetail() {
 
       {issue.media_id && (
         <figure>
-          <img
-            src={`/api/media/${issue.media_id}`}
-            alt={`Citizen-submitted photo of the reported ${issue.category_label}`}
-            className="w-full rounded-md border border-slate-200"
+          <ReportMedia
+            mediaId={issue.media_id}
+            kind={issue.media_kind}
+            label={`Citizen-submitted ${issue.media_kind === 'video' ? 'video' : 'photo'} of the reported ${issue.category_label}`}
+            className="w-full"
           />
           <figcaption className="mt-1 text-xs text-slate-600">
-            Location data removed at upload.
+            {issue.media_kind === 'video'
+              ? 'Location data and sound removed at upload. Faces in video are not blurred.'
+              : 'Location data removed and faces blurred at upload.'}
           </figcaption>
         </figure>
       )}

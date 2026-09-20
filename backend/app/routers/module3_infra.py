@@ -39,6 +39,7 @@ from app.services.jurisdiction import resolve_responsible_desk, resolve_ward
 from app.services.media_pipeline import IMAGE_CONTENT_TYPES, VIDEO_CONTENT_TYPES, process_and_store
 from app.services.notifications import send_email
 from app.services.sla import compute_sla_deadline, mark_overdue_issues
+from app.services.storage import media_kind
 
 router = APIRouter(prefix="/api/infra", tags=["module3-infrastructure"])
 
@@ -59,6 +60,7 @@ def _issue_to_public(issue: InfrastructureIssue) -> IssuePublicResponse:
         sla_deadline=issue.sla_deadline,
         created_at=issue.created_at,
         media_id=issue.media_id,
+        media_kind=media_kind(issue.media_id) if issue.media_id else None,
         tracking_token=issue.tracking_token,
     )
 

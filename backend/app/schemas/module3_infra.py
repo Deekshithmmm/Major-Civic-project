@@ -44,6 +44,8 @@ class IssuePublicResponse(BaseModel):
     # face-blurred; videos are not),
     # and unlike Module 4 evidence they are meant to be publicly visible.
     media_id: str | None = None
+    # "image" or "video": the page needs it to choose between an <img> and a <video> element.
+    media_kind: str | None = None
 
     # Public on the Module 3 board so a citizen who lost their code can find their report. This
     # is only safe because the token grants no access here that GET /api/infra/issues/{id}

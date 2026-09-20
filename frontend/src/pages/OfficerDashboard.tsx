@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import ReportMedia from '../components/ReportMedia'
 import StatusBadge from '../components/StatusBadge'
 import {
   apiGet,
@@ -115,10 +116,11 @@ export default function OfficerDashboard() {
               </div>
 
               {issue.media_id && (
-                <img
-                  src={`/api/media/${issue.media_id}`}
-                  alt={`Submitted photo for the reported ${issue.category_label}`}
-                  className="max-h-48 rounded-md border border-slate-200"
+                <ReportMedia
+                  mediaId={issue.media_id}
+                  kind={issue.media_kind}
+                  label={`Submitted ${issue.media_kind === 'video' ? 'video' : 'photo'} for the reported ${issue.category_label}`}
+                  className="max-h-48"
                 />
               )}
 

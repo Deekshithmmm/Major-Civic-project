@@ -39,13 +39,23 @@ def ensure_buckets() -> None:
             client.create_bucket(Bucket=bucket)
 
 
+# The key carries the file extension so a media ID says whether it is a photo or a video without
+# a database column for it - `media_kind()` below is the only place that reads it back.
+_EXTENSIONS = {"image/jpeg": ".jpg", "video/mp4": ".mp4", "video/webm": ".webm"}
+
+
 def put_object(data: bytes, content_type: str, bucket: str | None = None, key_prefix: str = "media") -> str:
     """Write bytes to object storage, return an opaque media ID (the object key)."""
     client = get_s3_client()
     bucket = bucket or settings.s3_bucket_media
-    key = f"{key_prefix}/{uuid.uuid4().hex}"
+    key = f"{key_prefix}/{uuid.uuid4().hex}{_EXTENSIONS.get(content_type, '')}"
     client.put_object(Bucket=bucket, Key=key, Body=BytesIO(data), ContentType=content_type)
     return key
+
+
+def media_kind(key: str) -> str:
+    """"video" or "image", for pages that must pick between a <video> and an <img> element."""
+    return "video" if key.endswith((".mp4", ".webm")) else "image"
 
 
 def get_object(key: str, bucket: str | None = None) -> bytes:

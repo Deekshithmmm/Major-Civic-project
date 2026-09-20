@@ -155,6 +155,8 @@ export async function compressImage(file: File, maxDimension = 1600, quality = 0
 
 export type IssueStatus = 'reported' | 'acknowledged' | 'in_progress' | 'resolved' | 'overdue'
 
+export type MediaKind = 'image' | 'video'
+
 export type IssueCategory = {
   id: string
   slug: string
@@ -176,6 +178,7 @@ export type Issue = {
   sla_deadline: string
   created_at: string
   media_id: string | null
+  media_kind: MediaKind | null
   tracking_token: string
 }
 

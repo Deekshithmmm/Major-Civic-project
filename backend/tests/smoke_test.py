@@ -132,6 +132,7 @@ def main() -> int:
     check("GPS EXIF is gone from the stored copy", 0x8825 not in stored_exif, f"exif keys: {list(stored_exif)}")
     check("camera make/model EXIF is gone too", 0x010F not in stored_exif and 0x0110 not in stored_exif)
     check("the stored file is still a valid image", Image.open(io.BytesIO(stored_bytes)).size == (800, 600))
+    check("photo report is flagged as image", detail["media_kind"] == "image", str(detail["media_kind"]))
 
     print("\n== Privacy: video metadata and audio stripped (videos are not face-blurred) ==")
     video = make_video_with_gps_metadata()
@@ -155,6 +156,7 @@ def main() -> int:
         check("device make is gone from the stored video", "SmokeTestPhone" not in stored_info)
         check("audio is dropped from the stored video", "Audio:" not in stored_info)
         check("stored video still has its picture", "Video: h264" in stored_info)
+        check("video report is flagged as video so the page renders a player", vdetail["media_kind"] == "video", str(vdetail["media_kind"]))
 
     print("\n== Module 3: duplicate clustering (spec 2.4 step 7) ==")
     dup_files = {"file": ("dup.jpg", make_jpeg_with_gps_exif(), "image/jpeg")}

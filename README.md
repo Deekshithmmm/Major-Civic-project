@@ -112,7 +112,7 @@ With the stack running and freshly seeded:
 cd backend && python -m tests.smoke_test
 ```
 
-44 checks covering the guarantees that actually matter — EXIF stripping verified on the stored
+46 checks covering the guarantees that actually matter — EXIF stripping verified on the stored
 photo, GPS/device tags and audio verified gone from the stored video, 50m duplicate clustering, role separation (moderator refused Module 1, municipal officer
 refused Module 2), proof-gated resolution, SLA breach + shareable card, officer-confirmed
 challans with the fine ladder read from config, appeal separation of duties, and the
@@ -120,7 +120,7 @@ police-personnel routing rule that must never notify local police.
 
 It's safe to re-run without resetting — it picks a fresh map location each time so it never
 collides with its own earlier data, and skips the challan flow if a previous run already
-confirmed the one seeded ANPR case (40 passed / 1 skipped instead of 44). For the full set,
+confirmed the one seeded ANPR case (42 passed / 1 skipped instead of 46). For the full set,
 reset first:
 
 ```bash
@@ -173,9 +173,6 @@ Listed explicitly because several of these look done from the outside and are no
   public board show bystanders' faces; on Module 2's public corruption feed, pre-publication
   moderation is now the only check for identifiable bystanders in video; Module 1 evidence
   clips reach officers unblurred. Photos are still blurred.
-- **Videos can't be viewed in the UI yet.** The issue page and officer dashboard render every
-  report's media as an `<img>`, so a video report shows a broken image. The stored file is a
-  browser-playable MP4/WebM; the pages just need to know the media type.
 - **Photo face blurring is untested against real faces.** The pipeline runs and blurs what the
   detector finds, but it uses OpenCV's Haar cascade frontal-face detector, which misses profile
   views, partial occlusion, small/distant faces, and performs unevenly across lighting and skin
