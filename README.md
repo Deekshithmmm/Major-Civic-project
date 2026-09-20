@@ -7,39 +7,34 @@ only, no live government API integration, no real personal data.
 > Draft engineering project. Not legal advice. See the spec's Appendix for the legal reasoning
 > behind the design choices called out below.
 
-## What's actually built vs. designed-but-unbuilt
+## What's built
 
-Per the spec's own scope warning (Part 3.2): a complete small system demonstrates more than four
-half-built ones. This repo currently implements **shared plumbing + Module 3 (civic infrastructure
-reporting) end to end**, and ships **schemas, routing tables, and API stubs** for Modules 1, 2, and 4
-so the design is documented and reviewable without pretending it's production-ready.
+All four modules are implemented, each with a citizen-facing flow and an officer-side view.
 
 | Module | Status |
 |---|---|
 | Shared plumbing (auth, DB, PostGIS jurisdictions, audit log, storage, media pipeline) | Built |
-| Module 3 — Civic infrastructure reporting | **Built end to end**, UI included |
-| Module 1 — Violation detection & enforcement assist | Backend built: officer review queue, confirm/reclassify/dismiss, challan issuance off a config-driven fine ladder, citizen upload, dispute + second-officer appeal. **No YOLOv8 detection and no ANPR/OCR** — cases come from seed data or citizen uploads, and ANPR-path cases have no plate resolved. No UI. |
-| Module 2 — Anonymous corruption reporting | Backend built: anonymous upload, routing-rules table, moderation queue, public feed, status badges, tracking tokens. **Not built:** uploader-driven extra blur regions, audio muting, device-level rate limiting, takedown/right-of-reply, Grievance Officer workflow. No UI. |
-| Module 4 — Emergency incident reporting & evidence vault | **Schema and routing table only, no routes.** The DB-level safety constraints *are* live (append-only chain of custody, irreversible `is_restricted` flag). Everything else — triage screen, vault, chain of custody, transparency layer — is unbuilt by design; see the warning below. |
+| Module 3 — Civic infrastructure reporting | Built end to end |
+| Module 1 — Violation detection & enforcement assist | Built end to end, **except the CV pipeline**: there is no YOLOv8 detection and no ANPR/OCR, so cases arrive from citizen uploads or seed data and ANPR-path cases have no plate resolved until an officer supplies one. Officer review, challan issuance off a config-driven fine ladder, disputes and second-officer appeals all work. |
+| Module 2 — Anonymous corruption reporting | Built end to end: anonymous upload with browser-side coarse geohashing, routing-rules table, pre-publication moderation, public feed with status badges, tracking tokens. **Not built:** uploader-driven extra blur regions, audio muting, device-level rate limiting, takedown/right-of-reply, Grievance Officer workflow. |
+| Module 4 — Emergency reporting & evidence custody | Built: triage screen that leads with a 112 call, hard stop for any offence involving a minor, sealed evidence vault with chain of custody, case-number-gated investigating-officer access, and the public transparency layer (station response ledger + aggregate hotspot map). **Not built:** storage-policy-level separation at the bucket layer, per-report encryption keys, auto-purge on a retention schedule, and the irreversible video blur that restricted categories would need (video is refused there instead). |
 
-### Before anyone implements Module 4
+### If you touch Module 4
 
-Module 4 is the one module where a half-built version is worse than none. Its routes are
-deliberately absent, not merely unfinished. Do not add any endpoint that writes to
-`emergency_reports` until all of these exist:
+These are the parts that must not be loosened, and each is enforced rather than documented:
 
-- A **separate evidence-vault bucket** with its own access policy, retention schedule and
-  encryption key — never the general media bucket these other modules use.
-- **Hashing before processing** (SHA-256 of the original, client-side) — the chain of custody is
-  worthless if the first hash is taken after the server has already re-encoded the file.
-- **Storage-layer role separation**, not just the route dependencies used elsewhere in this repo.
-  Moderators must have no path to this data at all.
-- The **hard stop for any offence involving a minor**, enforced *before* any bytes are accepted.
-  Accepting that upload "to forward it" is itself an offence under POCSO and IT Act 67B. The rule
-  is already seeded in `emergency_routing_rules` (`is_hard_stop = true`).
-- Its **own irreversible face blur for sexual-offence footage**. The shared media pipeline no
-  longer blurs video at all (removed for speed), so Module 4 cannot inherit that protection from
-  it, and the spec makes blur at ingestion mandatory for these reports.
+- **The hard stop for any offence involving a minor** happens before a single byte is read.
+  Accepting that upload "to forward it" is itself an offence under POCSO and IT Act 67B.
+- **Evidence lives in a separate vault bucket**, never the media bucket the public pages read.
+- **Only an investigating officer supplying a case or FIR number** can open evidence, and every
+  open appends to an append-only chain of custody. Moderators get 403 on every route here.
+- **Sexual-offence and minor categories never reach a public surface**, including aggregate
+  counts — `PUBLIC_CATEGORIES` in `services/transparency.py` is the allowlist that enforces it.
+- **The hotspot map runs a quarter behind with a k-anonymity threshold of five.** A live map is
+  an intelligence feed for the people being reported, and a cell of one points at whoever filed it.
+
+Still missing before this could be deployed: separation enforced by bucket policy rather than
+application code, per-report encryption keys, and the auto-purge schedule.
 
 ## Why the design looks like this
 
@@ -112,15 +107,21 @@ With the stack running and freshly seeded:
 cd backend && python -m tests.smoke_test
 ```
 
-48 checks covering the guarantees that actually matter — EXIF stripping verified on the stored
-photo, GPS/device tags and audio verified gone from the stored video, 50m duplicate clustering, role separation (moderator refused Module 1, municipal officer
-refused Module 2), proof-gated resolution, SLA breach + shareable card, officer-confirmed
-challans with the fine ladder read from config, appeal separation of duties, and the
-police-personnel routing rule that must never notify local police.
+75 checks covering the guarantees that actually matter, across all four modules: EXIF
+stripping verified on the stored photo, GPS/device tags and audio verified gone from the stored
+video, 50m duplicate clustering, proof-gated resolution, SLA breach + shareable card,
+officer-confirmed challans with the fine ladder read from config, appeal separation of duties,
+the police-personnel routing rule that must never notify local police, a corruption report that
+stays off the feed until moderated, the hard stop on any offence involving a minor, evidence
+refused without a case number and served only from the vault bucket, and a hotspot map that
+suppresses cells below five and never carries a restricted category.
+
+Role separation is asserted in both directions: a moderator is refused Module 1 identity data
+and every Module 4 route, and a municipal officer is refused Module 2 reports.
 
 It's safe to re-run without resetting — it picks a fresh map location each time so it never
 collides with its own earlier data, and skips the challan flow if a previous run already
-confirmed the one seeded ANPR case (44 passed / 1 skipped instead of 48). For the full set,
+confirmed the one seeded ANPR case (71 passed / 1 skipped instead of 75). For the full set,
 reset first:
 
 ```bash
@@ -137,12 +138,17 @@ backend/app/
   schemas/      Pydantic request/response schemas
   routers/      FastAPI routers
   services/     jurisdiction resolution (PostGIS), media pipeline (metadata strip, photo
-                face blur, thumbnailing), storage (S3/MinIO client), SLA timers, auth
+                face blur, thumbnailing), storage (S3/MinIO), evidence vault (Module 4,
+                separate bucket), transparency (ledger + k-anonymous hotspots), SLA
+                timers, tracking codes, notifications, auth
   seed/         synthetic seed data generator
 frontend/src/
-  pages/        citizen report flow, public status board, officer dashboard, auth
-  components/
-  lib/          API client, map helpers
+  pages/        one flow per module: infrastructure report + board + tracking,
+                corruption report + moderated feed, violation report, emergency
+                triage, public transparency layer, officer dashboard, auth
+  components/   shared UI, plus components/officer/* — one panel per module, shown
+                only to the roles the API would accept
+  lib/          API client (upload progress, timeouts), coarse geohashing, i18n
 ```
 
 ## Data model notes

@@ -235,6 +235,53 @@ const STRINGS = {
     kn: 'ಅಧಿಕೃತ ಅಧಿಕಾರಿ ನಿಮ್ಮ ಸಾಕ್ಷ್ಯ ಪರಿಶೀಲಿಸಿ ನಿರ್ಧರಿಸುತ್ತಾರೆ. ಯಾವುದೇ ದಂಡ ಸ್ವಯಂಚಾಲಿತವಾಗಿ ವಿಧಿಸಲಾಗುವುದಿಲ್ಲ.',
   },
   violClass: { en: 'What did you see', hi: 'आपने क्या देखा', kn: 'ನೀವು ಏನು ನೋಡಿದಿರಿ' },
+  // --- Module 4 ---
+  emgTitle: { en: 'Report a crime or emergency', hi: 'अपराध या आपात स्थिति की सूचना दें', kn: 'ಅಪರಾಧ ಅಥವಾ ತುರ್ತು ವರದಿ ಮಾಡಿ' },
+  emgTierA: { en: 'Someone is in danger right now', hi: 'कोई अभी ख़तरे में है', kn: 'ಯಾರಾದರೂ ಈಗ ಅಪಾಯದಲ್ಲಿದ್ದಾರೆ' },
+  emgTierABody: {
+    en: 'An assault, violence, or an injured person. Call for help first — do not stop to film.',
+    hi: 'हमला, हिंसा, या घायल व्यक्ति। पहले मदद के लिए कॉल करें — फ़िल्म करने के लिए न रुकें।',
+    kn: 'ಹಲ್ಲೆ, ಹಿಂಸೆ ಅಥವಾ ಗಾಯಗೊಂಡ ವ್ಯಕ್ತಿ. ಮೊದಲು ಸಹಾಯಕ್ಕೆ ಕರೆ ಮಾಡಿ — ಚಿತ್ರೀಕರಿಸಲು ನಿಲ್ಲಬೇಡಿ.',
+  },
+  emgTierB: { en: 'It already happened, or is ongoing', hi: 'यह हो चुका है, या जारी है', kn: 'ಈಗಾಗಲೇ ನಡೆದಿದೆ ಅಥವಾ ನಡೆಯುತ್ತಿದೆ' },
+  emgTierBBody: {
+    en: 'A recorded incident, something discovered, narcotics or trafficking. Send it to investigators.',
+    hi: 'रिकॉर्ड की गई घटना, कुछ मिला, नशीले पदार्थ या तस्करी। इसे जाँचकर्ताओं को भेजें।',
+    kn: 'ದಾಖಲಾದ ಘಟನೆ, ಪತ್ತೆಯಾದದ್ದು, ಮಾದಕವಸ್ತು ಅಥವಾ ಕಳ್ಳಸಾಗಣೆ. ತನಿಖಾಧಿಕಾರಿಗಳಿಗೆ ಕಳುಹಿಸಿ.',
+  },
+  emgCall112: { en: 'Call 112 now', hi: 'अभी 112 पर कॉल करें', kn: 'ಈಗ 112 ಗೆ ಕರೆ ಮಾಡಿ' },
+  emgCallHelp: {
+    en: 'Read out your location to the operator. If speaking aloud is unsafe, stay on the line and the operator will still receive the call.',
+    hi: 'ऑपरेटर को अपना स्थान बताएं। यदि बोलना सुरक्षित नहीं है, तो लाइन पर बने रहें, ऑपरेटर को कॉल फिर भी मिलेगी।',
+    kn: 'ಆಪರೇಟರ್‌ಗೆ ನಿಮ್ಮ ಸ್ಥಳ ತಿಳಿಸಿ. ಮಾತನಾಡುವುದು ಸುರಕ್ಷಿತವಲ್ಲದಿದ್ದರೆ, ಲೈನ್‌ನಲ್ಲಿಯೇ ಇರಿ, ಕರೆ ತಲುಪುತ್ತದೆ.',
+  },
+  emgAfterCall: {
+    en: 'I have called for help — I also have evidence to send',
+    hi: 'मैंने मदद के लिए कॉल कर लिया है — मेरे पास भेजने के लिए साक्ष्य भी है',
+    kn: 'ನಾನು ಸಹಾಯಕ್ಕೆ ಕರೆ ಮಾಡಿದ್ದೇನೆ — ಕಳುಹಿಸಲು ಸಾಕ್ಷ್ಯವೂ ಇದೆ',
+  },
+  emgCategory: { en: 'What are you reporting', hi: 'आप क्या सूचित कर रहे हैं', kn: 'ನೀವು ಏನು ವರದಿ ಮಾಡುತ್ತಿದ್ದೀರಿ' },
+  emgMinorStop: { en: 'We cannot accept this here', hi: 'हम इसे यहाँ स्वीकार नहीं कर सकते', kn: 'ನಾವು ಇದನ್ನು ಇಲ್ಲಿ ಸ್ವೀಕರಿಸಲಾಗುವುದಿಲ್ಲ' },
+  emgMinorStopBody: {
+    en: 'If a child is involved, this platform must not receive or store the material — doing so is itself an offence, including for us. These services can act immediately.',
+    hi: 'यदि कोई बच्चा शामिल है, तो यह प्लेटफ़ॉर्म सामग्री प्राप्त या संग्रहीत नहीं कर सकता — ऐसा करना स्वयं एक अपराध है, हमारे लिए भी। ये सेवाएँ तुरंत कार्रवाई कर सकती हैं।',
+    kn: 'ಮಗು ಒಳಗೊಂಡಿದ್ದರೆ, ಈ ವೇದಿಕೆ ಆ ಸಾಮಗ್ರಿಯನ್ನು ಸ್ವೀಕರಿಸುವಂತಿಲ್ಲ ಅಥವಾ ಸಂಗ್ರಹಿಸುವಂತಿಲ್ಲ — ಹಾಗೆ ಮಾಡುವುದು ನಮಗೂ ಅಪರಾಧ. ಈ ಸೇವೆಗಳು ತಕ್ಷಣ ಕ್ರಮ ಕೈಗೊಳ್ಳಬಲ್ಲವು.',
+  },
+  emgEvidenceOptional: {
+    en: 'Evidence (optional) — a report without a file reaches investigators just the same.',
+    hi: 'साक्ष्य (वैकल्पिक) — बिना फ़ाइल की शिकायत भी जाँचकर्ताओं तक उसी तरह पहुँचती है।',
+    kn: 'ಸಾಕ್ಷ್ಯ (ಐಚ್ಛಿಕ) — ಫೈಲ್ ಇಲ್ಲದ ದೂರೂ ತನಿಖಾಧಿಕಾರಿಗಳಿಗೆ ಅಷ್ಟೇ ತಲುಪುತ್ತದೆ.',
+  },
+  emgSubmitted: { en: 'Report sent to investigators', hi: 'शिकायत जाँचकर्ताओं को भेजी गई', kn: 'ದೂರು ತನಿಖಾಧಿಕಾರಿಗಳಿಗೆ ಕಳುಹಿಸಲಾಗಿದೆ' },
+  emgRoutedTo: { en: 'Sent to', hi: 'भेजा गया', kn: 'ಕಳುಹಿಸಲಾಗಿದೆ' },
+  emgSupportTitle: { en: 'Help available to you now', hi: 'अभी आपके लिए उपलब्ध सहायता', kn: 'ಈಗ ನಿಮಗೆ ಲಭ್ಯವಿರುವ ಸಹಾಯ' },
+  emgNeverPublic: {
+    en: 'Your evidence is never published. It goes to investigators under a sealed chain of custody.',
+    hi: 'आपका साक्ष्य कभी प्रकाशित नहीं होता। यह सीलबंद कस्टडी श्रृंखला के तहत जाँचकर्ताओं को जाता है।',
+    kn: 'ನಿಮ್ಮ ಸಾಕ್ಷ್ಯ ಎಂದಿಗೂ ಪ್ರಕಟವಾಗುವುದಿಲ್ಲ. ಇದು ಮೊಹರು ಮಾಡಿದ ಕಸ್ಟಡಿ ಸರಪಳಿಯಡಿ ತನಿಖಾಧಿಕಾರಿಗಳಿಗೆ ಹೋಗುತ್ತದೆ.',
+  },
+  navTransparency: { en: 'Accountability', hi: 'जवाबदेही', kn: 'ಹೊಣೆಗಾರಿಕೆ' },
+
   violSubmitted: {
     en: 'Evidence received. It is now waiting for an officer to review it.',
     hi: 'साक्ष्य प्राप्त हुआ। अब यह अधिकारी की समीक्षा की प्रतीक्षा में है।',

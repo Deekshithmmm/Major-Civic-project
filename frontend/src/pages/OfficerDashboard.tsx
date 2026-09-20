@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
+import EmergencyPanel from '../components/officer/EmergencyPanel'
 import InfraQueue from '../components/officer/InfraQueue'
 import ModerationQueue from '../components/officer/ModerationQueue'
 import VigilancePanel from '../components/officer/VigilancePanel'
@@ -8,7 +9,7 @@ import ViolationQueue from '../components/officer/ViolationQueue'
 import { apiGet, clearToken, getToken, type CurrentUser } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 
-type TabId = 'infra' | 'violations' | 'moderation' | 'vigilance'
+type TabId = 'infra' | 'violations' | 'moderation' | 'vigilance' | 'emergency'
 
 /**
  * Which panels a role may open. This mirrors the API's own role checks rather than replacing
@@ -25,6 +26,8 @@ const TABS: { id: TabId; label: string; roles: string[] }[] = [
   { id: 'violations', label: 'Violations', roles: ['municipal_officer', 'admin'] },
   { id: 'moderation', label: 'Moderation', roles: ['moderator', 'admin'] },
   { id: 'vigilance', label: 'Vigilance', roles: ['vigilance_officer', 'admin'] },
+  // Module 4 evidence is the sharpest separation in the system: no other role reaches it.
+  { id: 'emergency', label: 'Emergency evidence', roles: ['investigating_officer', 'admin'] },
 ]
 
 export default function OfficerDashboard() {
@@ -93,8 +96,7 @@ export default function OfficerDashboard() {
 
       {available.length === 0 && user && (
         <p className="card text-slate-700">
-          The {user.role.replace(/_/g, ' ')} role has no panel here yet. Module 4 evidence access
-          is not built — see the README before building it.
+          The {user.role.replace(/_/g, ' ')} role has no panel here.
         </p>
       )}
 
@@ -102,6 +104,7 @@ export default function OfficerDashboard() {
       {tab === 'violations' && <ViolationQueue />}
       {tab === 'moderation' && <ModerationQueue />}
       {tab === 'vigilance' && <VigilancePanel />}
+      {tab === 'emergency' && <EmergencyPanel />}
     </div>
   )
 }

@@ -34,7 +34,14 @@ from app.models.module2_corruption import (
     PublicStatusBadge,
     RoutingRule,
 )
-from app.models.module4_emergency import EmergencyReportRoutingRule, OffenceCategory
+from app.models.module4_emergency import (
+    ChainOfCustodyEntry,
+    EmergencyReport,
+    EmergencyReportRoutingRule,
+    OffenceCategory,
+    PoliceStation,
+)
+from app.services.evidence_vault import seal, store_evidence
 from app.models.module3_infra import (
     InfrastructureIssue,
     IssueCategory,
@@ -266,6 +273,130 @@ def seed_emergency_routing_rules(db: Session) -> None:
     db.commit()
 
 
+def seed_police_stations(db: Session, wards: dict[str, Ward]) -> dict[str, PoliceStation]:
+    stations = {}
+    for i, w in enumerate(WARDS, start=1):
+        code = f"PS-{i:02d}"
+        existing = db.execute(select(PoliceStation).where(PoliceStation.code == code)).scalars().first()
+        if existing:
+            stations[w["name"]] = existing
+            continue
+        station = PoliceStation(
+            name=f"{w['name'].replace(' Ward', '')} Police Station",
+            code=code,
+            ward_id=wards[w["name"]].id,
+            contact_phone="+91-90000-10000",
+            contact_email=f"{code.lower()}@police.demo.city",
+        )
+        db.add(station)
+        stations[w["name"]] = station
+    db.commit()
+    for name in stations:
+        db.refresh(stations[name])
+    return stations
+
+
+def seed_emergency_reports(db: Session, wards: dict[str, Ward], stations: dict[str, PoliceStation]) -> None:
+    """
+    Shapes the data so the transparency layer actually demonstrates something: one station
+    sitting on unacknowledged reports past the FIR deadline (flagged red), one responding
+    properly, a past-quarter cluster above the k-anonymity threshold so the hotspot map has a
+    visible cell, one below it so suppression is visible too, and a restricted report that must
+    appear on no public surface at all.
+    """
+    if db.execute(select(EmergencyReport)).scalars().first():
+        return
+    ensure_buckets()
+    now = datetime.now(timezone.utc)
+    last_quarter = now - timedelta(days=100)
+
+    def add(category, ward_name, created, *, acknowledged=None, fir=None, closed_reason=None, restricted=False):
+        report = EmergencyReport(
+            category=category,
+            geohash="tdr1x",
+            ward_id=wards[ward_name].id,
+            station_id=stations[ward_name].id,
+            tracking_token=secrets.token_urlsafe(24),
+            is_restricted=restricted,
+            created_at=created,
+            acknowledged_at=acknowledged,
+            fir_number=fir,
+            fir_registered_at=created + timedelta(hours=6) if fir else None,
+            closed_without_fir_reason=closed_reason,
+            closed_at=created + timedelta(days=2) if closed_reason else None,
+        )
+        db.add(report)
+        return report
+
+    # Lakeview: sitting on reports. Two are past the 7-day FIR deadline, so it flags red.
+    for days in (9, 8, 3):
+        add(OffenceCategory.ASSAULT_IN_PROGRESS, "Lakeview Ward", now - timedelta(days=days))
+
+    # Market: acknowledging quickly and registering FIRs.
+    for i, days in enumerate((6, 4, 2)):
+        created = now - timedelta(days=days)
+        add(
+            OffenceCategory.HOMICIDE_OR_BODY_DISCOVERED if i == 0 else OffenceCategory.ASSAULT_IN_PROGRESS,
+            "Market Ward",
+            created,
+            acknowledged=created + timedelta(hours=1),
+            fir=f"FIR/2026/{100 + i}",
+        )
+    closed = now - timedelta(days=5)
+    add(
+        OffenceCategory.ASSAULT_IN_PROGRESS,
+        "Market Ward",
+        closed,
+        acknowledged=closed + timedelta(hours=2),
+        closed_reason="Complainant withdrew; no cognizable offence made out",
+    )
+
+    # Riverside: a past-quarter narcotics cluster, above the k-anonymity threshold of five.
+    for i in range(6):
+        created = last_quarter - timedelta(days=i)
+        add(
+            OffenceCategory.NARCOTICS,
+            "Riverside Ward",
+            created,
+            acknowledged=created + timedelta(hours=3),
+            fir=f"FIR/2026/{200 + i}" if i < 2 else None,
+        )
+
+    # Hillview: only three in the same past quarter, so the map must suppress the cell.
+    for i in range(3):
+        add(OffenceCategory.ASSAULT_IN_PROGRESS, "Hillview Ward", last_quarter - timedelta(days=i))
+
+    # Restricted: never on the ledger, the hotspot map, or any other public surface.
+    add(
+        OffenceCategory.SEXUAL_OFFENCE_ADULT,
+        "Market Ward",
+        now - timedelta(days=4),
+        acknowledged=now - timedelta(days=4) + timedelta(hours=1),
+        restricted=True,
+    )
+
+    # One report holding sealed evidence, so the investigating-officer flow is demonstrable.
+    with_evidence = add(
+        OffenceCategory.NARCOTICS,
+        "Riverside Ward",
+        now - timedelta(days=1),
+        acknowledged=now - timedelta(hours=20),
+    )
+    evidence = _placeholder_image_bytes("SEALED EVIDENCE - synthetic", (30, 30, 60))
+    with_evidence.original_sha256 = seal(evidence)
+    with_evidence.media_id = store_evidence(evidence, "image/jpeg")
+    db.flush()
+    db.add(
+        ChainOfCustodyEntry(
+            report_id=with_evidence.id,
+            action="sealed",
+            detail=f"sha256={with_evidence.original_sha256}",
+        )
+    )
+
+    db.commit()
+
+
 def seed_users(db: Session, wards: dict[str, Ward]) -> dict[str, User]:
     users = {}
     ward_ids = list(wards.values())
@@ -423,7 +554,9 @@ def main() -> None:
         vehicles = seed_vehicle_registry(db)
         seed_routing_rules(db)
         seed_emergency_routing_rules(db)
+        stations = seed_police_stations(db, wards)
         seed_users(db, wards)
+        seed_emergency_reports(db, wards, stations)
         seed_sample_infra_issues(db, wards, categories)
         seed_sample_violation_cases(db, wards, classes, vehicles)
         seed_sample_corruption_reports(db)

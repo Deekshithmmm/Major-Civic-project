@@ -17,6 +17,7 @@ import re
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 
 import imageio_ffmpeg
@@ -329,6 +330,103 @@ def main() -> int:
         )
         after = requests.get(f"{BASE}/api/corruption/feed", timeout=10).json()
         check("approved report now appears on the feed", any(f["id"] == new_item["id"] for f in after))
+
+    print("\n== Module 4: hard stop, evidence custody and the transparency layer ==")
+    hard_stop = requests.post(
+        f"{BASE}/api/emergency/reports",
+        data={"category": "minor_involved", "lat": TEST_LAT, "lng": TEST_LNG, "geohash": "tdr1x"},
+        files={"file": ("x.jpg", make_jpeg_with_gps_exif(), "image/jpeg")},
+        timeout=30,
+    )
+    check(
+        "any offence involving a minor is refused outright, even with a file attached",
+        hard_stop.status_code == 422,
+        str(hard_stop.status_code),
+    )
+    stop_detail = hard_stop.json().get("detail", {}) if hard_stop.status_code == 422 else {}
+    check(
+        "the refusal routes the user to 1098, 112 and CCPWC",
+        {"1098", "112"}.issubset({r["number"] for r in stop_detail.get("redirect_to", [])}),
+    )
+
+    restricted_video = requests.post(
+        f"{BASE}/api/emergency/reports",
+        data={"category": "sexual_offence_adult", "lat": TEST_LAT, "lng": TEST_LNG, "geohash": "tdr1x"},
+        files={"file": ("x.mp4", b"\x00\x00\x00\x18ftypmp42", "video/mp4")},
+        timeout=30,
+    )
+    check(
+        "restricted category refuses video while blur is unavailable",
+        restricted_video.status_code == 415,
+        str(restricted_video.status_code),
+    )
+
+    no_evidence = requests.post(
+        f"{BASE}/api/emergency/reports",
+        data={"category": "assault_in_progress", "lat": TEST_LAT, "lng": TEST_LNG, "geohash": "tdr1x"},
+        timeout=30,
+    )
+    check("a report with no evidence is accepted", no_evidence.status_code == 201, no_evidence.text[:200])
+    check(
+        "support resources are surfaced on submission",
+        no_evidence.status_code != 201 or any(r["number"] == "112" for r in no_evidence.json()["support_resources"]),
+    )
+
+    inv_login = requests.post(
+        f"{BASE}/api/auth/login", json={"email": "investigator@demo.city", "password": DEV_PASSWORD}, timeout=10
+    ).json()
+    inv_h = {"Authorization": f"Bearer {inv_login['access_token']}"}
+
+    check(
+        "moderator has no route to Module 4 at all (spec 2.6)",
+        requests.get(f"{BASE}/api/emergency/officer/queue", headers=mod_h, timeout=10).status_code == 403,
+    )
+    m4_queue = requests.get(f"{BASE}/api/emergency/officer/queue", headers=inv_h, timeout=10)
+    check("investigating officer can see the queue", m4_queue.status_code == 200, str(m4_queue.status_code))
+
+    with_evidence = next((r for r in m4_queue.json() if r["has_evidence"]), None) if m4_queue.status_code == 200 else None
+    if not with_evidence:
+        skip("evidence custody flow", "no seeded report holds evidence")
+    else:
+        blank = requests.post(
+            f"{BASE}/api/emergency/officer/reports/{with_evidence['id']}/evidence",
+            headers=inv_h, json={"case_or_fir_number": "   "}, timeout=15,
+        )
+        check("evidence is refused without a case or FIR number", blank.status_code == 400, str(blank.status_code))
+
+        opened = requests.post(
+            f"{BASE}/api/emergency/officer/reports/{with_evidence['id']}/evidence",
+            headers=inv_h, json={"case_or_fir_number": "FIR/SMOKE/1"}, timeout=15,
+        )
+        check("evidence opens with a case number", opened.status_code == 200, opened.text[:200])
+        if opened.status_code == 200:
+            check("evidence is served from the segregated vault bucket", "evidence-vault" in opened.json()["url"])
+            check("the sealing hash is kept with the report", bool(opened.json()["original_sha256"]))
+
+        chain = requests.get(
+            f"{BASE}/api/emergency/officer/reports/{with_evidence['id']}/chain-of-custody", headers=inv_h, timeout=10
+        ).json()
+        check("chain of custody records the seal and the access", len(chain) >= 2, str(len(chain)))
+        check("the access entry carries the case number", any(e["case_or_fir_number"] == "FIR/SMOKE/1" for e in chain))
+
+    ledger = requests.get(f"{BASE}/api/emergency/ledger", timeout=15).json()
+    check("station response ledger is public", len(ledger) > 0, str(len(ledger)))
+    check(
+        "the ledger flags a station sitting on reports past the FIR deadline",
+        any(row["flagged_red"] for row in ledger),
+    )
+
+    hotspots = requests.get(f"{BASE}/api/emergency/hotspots", timeout=15).json()
+    check(
+        "hotspot map suppresses any cell below the k-anonymity threshold of five",
+        all(cell["report_count"] >= 5 for cell in hotspots),
+    )
+    check(
+        "hotspot map never carries a restricted category",
+        all(cell["category"] not in ("sexual_offence_adult", "minor_involved") for cell in hotspots),
+    )
+    this_quarter = f"{datetime.now(timezone.utc).year} Q{(datetime.now(timezone.utc).month - 1) // 3 + 1}"
+    check("hotspot map runs a quarter behind", all(cell["quarter"] != this_quarter for cell in hotspots))
 
     summary = f"  {passed} passed, {failed} failed" + (f", {skipped} skipped" if skipped else "")
     print(f"\n{'=' * 52}\n{summary}\n{'=' * 52}\n")

@@ -36,9 +36,14 @@ export default function StatusBoard() {
             {visible.length} {t('reportsCount')}
           </p>
         </div>
-        <Link to="/report" className="btn-primary">
-          {t('navReport')}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/track" className="btn-secondary">
+            {t('navTrack')}
+          </Link>
+          <Link to="/report" className="btn-primary">
+            {t('navReport')}
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by status">

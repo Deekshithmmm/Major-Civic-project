@@ -3,6 +3,7 @@ import { NavLink, Route, Routes } from 'react-router-dom'
 import LanguagePicker from './components/LanguagePicker'
 import CorruptionFeed from './pages/CorruptionFeed'
 import CorruptionReport from './pages/CorruptionReport'
+import EmergencyTriage from './pages/EmergencyTriage'
 import Home from './pages/Home'
 import IssueDetail from './pages/IssueDetail'
 import OfficerDashboard from './pages/OfficerDashboard'
@@ -10,6 +11,7 @@ import OfficerLogin from './pages/OfficerLogin'
 import ReportIssue from './pages/ReportIssue'
 import StatusBoard from './pages/StatusBoard'
 import TrackIssue from './pages/TrackIssue'
+import Transparency from './pages/Transparency'
 import ViolationReport from './pages/ViolationReport'
 import { useI18n } from './lib/i18n'
 
@@ -49,7 +51,8 @@ export default function App() {
             <NavItem to="/infrastructure" label={t('navBoard')} />
             <NavItem to="/corruption" label={t('navCorruption')} />
             <NavItem to="/violations/report" label={t('navViolations')} />
-            <NavItem to="/track" label={t('navTrack')} />
+            <NavItem to="/emergency" label={t('navEmergency')} />
+            <NavItem to="/transparency" label={t('navTransparency')} />
             <NavItem to="/officer" label={t('navOfficer')} />
           </nav>
           <LanguagePicker />
@@ -72,6 +75,10 @@ export default function App() {
 
           {/* Module 1 */}
           <Route path="/violations/report" element={<ViolationReport />} />
+
+          {/* Module 4 */}
+          <Route path="/emergency" element={<EmergencyTriage />} />
+          <Route path="/transparency" element={<Transparency />} />
 
           {/* Officials */}
           <Route path="/officer" element={<OfficerLogin />} />
