@@ -124,6 +124,10 @@ Backend API docs: http://localhost:8000/docs
 Frontend: http://localhost:5173
 MinIO console: http://localhost:9001 (user/pass in `.env`)
 
+**Restart the Vite dev server after editing `tailwind.config.js`.** Tailwind reads its config
+once at startup, so a theme value added while the server is running produces a "class does not
+exist" error in the browser even though `npm run build` succeeds from a fresh process.
+
 Postgres is published on **host port 5433**, not 5432, because a locally-installed Postgres
 commonly already holds 5432 — if the app can't authenticate as `civic`, you're almost certainly
 talking to a different Postgres.

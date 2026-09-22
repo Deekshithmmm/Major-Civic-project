@@ -112,7 +112,7 @@ export default function Stations() {
           <li key={s.id}>
             <Link
               to={`/stations/${s.id}`}
-              className="flex h-full flex-col rounded-lg border border-slate-200 bg-white p-4 hover:border-civic-600/40 hover:shadow-sm"
+              className="card-link flex h-full flex-col"
             >
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="font-semibold text-ink">{s.name}</span>
