@@ -5,7 +5,9 @@ export default function LanguagePicker() {
 
   return (
     <div className="flex items-center gap-2">
-      <label htmlFor="lang-select" className="text-sm text-slate-700">
+      {/* Hidden visually on narrow screens, where the header also carries the menu button - but
+          kept in the accessibility tree, so the select is still labelled. */}
+      <label htmlFor="lang-select" className="sr-only text-sm text-slate-700 lg:not-sr-only">
         {t('language')}
       </label>
       <select
