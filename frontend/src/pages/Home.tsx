@@ -2,24 +2,38 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import AllegationBadge from '../components/AllegationBadge'
+import {
+  IconArrowRight,
+  IconBribe,
+  IconCamera,
+  IconLedger,
+  IconRoad,
+  IconShield,
+  IconSiren,
+} from '../components/icons'
 import ReportMedia from '../components/ReportMedia'
 import StatusBadge from '../components/StatusBadge'
 import { apiGet, type FeedItem, type Issue } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 import { usePageTitle } from '../lib/usePageTitle'
 
+type Tone = 'civic' | 'amber' | 'red'
+
 type Card = {
   to: string
   title: string
   body: string
   cta: string
-  tone: 'civic' | 'amber' | 'red'
+  tone: Tone
+  icon: (props: { className?: string }) => JSX.Element
 }
 
-const TONES = {
-  civic: 'border-civic-600/30 bg-civic-50',
-  amber: 'border-amber-500/30 bg-amber-50',
-  red: 'border-red-500/30 bg-red-50',
+// Border and icon colour per section, so the four are distinguishable at a glance - and each
+// also carries its own icon, so the distinction does not rest on colour alone.
+const TONES: Record<Tone, { card: string; icon: string }> = {
+  civic: { card: 'border-civic-600/25 hover:border-civic-500/60', icon: 'bg-civic-100 text-civic-700' },
+  amber: { card: 'border-amber-500/25 hover:border-amber-500/60', icon: 'bg-amber-100 text-amber-800' },
+  red: { card: 'border-red-500/25 hover:border-red-500/60', icon: 'bg-red-100 text-red-800' },
 }
 
 type ViolationStats = {
@@ -66,25 +80,40 @@ export default function Home() {
   const unacknowledged = ledger.reduce((sum, row) => sum + row.unacknowledged_past_sla, 0)
 
   const cards: Card[] = [
-    { to: '/infrastructure', title: t('infraTitle'), body: t('homeInfraBody'), cta: t('navBoard'), tone: 'civic' },
-    { to: '/corruption', title: t('homeCorruptionTitle'), body: t('homeCorruptionBody'), cta: t('homeCorruptionCta'), tone: 'civic' },
-    { to: '/violations/report', title: t('homeViolationsTitle'), body: t('homeViolationsBody'), cta: t('homeViolationsCta'), tone: 'amber' },
-    { to: '/emergency', title: t('homeEmergencyTitle'), body: t('homeEmergencyBody'), cta: t('homeEmergencyCta'), tone: 'red' },
+    { to: '/infrastructure', title: t('infraTitle'), body: t('homeInfraBody'), cta: t('navBoard'), tone: 'civic', icon: IconRoad },
+    { to: '/corruption', title: t('homeCorruptionTitle'), body: t('homeCorruptionBody'), cta: t('homeCorruptionCta'), tone: 'civic', icon: IconBribe },
+    { to: '/violations/report', title: t('homeViolationsTitle'), body: t('homeViolationsBody'), cta: t('homeViolationsCta'), tone: 'amber', icon: IconCamera },
+    { to: '/emergency', title: t('homeEmergencyTitle'), body: t('homeEmergencyBody'), cta: t('homeEmergencyCta'), tone: 'red', icon: IconSiren },
   ]
 
   const stats = [
-    { label: t('homeStatInfra'), value: issues.length, to: '/infrastructure' },
-    { label: t('homeStatCorruption'), value: feed.length, to: '/corruption' },
-    { label: t('homeStatViolations'), value: violations?.pending_review ?? '—', to: '/violations/report' },
-    { label: t('homeStatEmergency'), value: unacknowledged, to: '/transparency' },
+    { label: t('homeStatInfra'), value: issues.length, to: '/infrastructure', icon: IconRoad },
+    { label: t('homeStatCorruption'), value: feed.length, to: '/corruption', icon: IconBribe },
+    { label: t('homeStatViolations'), value: violations?.pending_review ?? '—', to: '/violations/report', icon: IconCamera },
+    { label: t('homeStatEmergency'), value: unacknowledged, to: '/transparency', icon: IconLedger },
   ]
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-semibold text-ink">{t('appName')}</h1>
-        <p className="mt-1 max-w-2xl text-slate-700">{t('homeIntro')}</p>
-      </div>
+      <section className="hero">
+        <div className="relative max-w-2xl">
+          <span className="pill bg-civic-100 text-civic-800">
+            <IconShield className="h-3.5 w-3.5" />
+            {t('heroBadge')}
+          </span>
+          <h1 className="mt-3 text-3xl font-semibold text-ink sm:text-4xl">{t('appName')}</h1>
+          <p className="mt-2 text-slate-700">{t('homeIntro')}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Link to="/report" className="btn-primary">
+              {t('navReport')}
+              <IconArrowRight />
+            </Link>
+            <Link to="/track" className="btn-secondary">
+              {t('navTrack')}
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* The four modules come first. They are what someone arrives here to use; the counters
           below are context, and putting them above pushed the actual sections off the screen. */}
@@ -93,24 +122,22 @@ export default function Home() {
         <p className="mt-1 max-w-2xl text-sm text-slate-600">{t('homeModulesIntro')}</p>
 
         <ul className="mt-4 grid gap-4 sm:grid-cols-2">
-          {cards.map((card, index) => (
+          {cards.map((card) => (
             <li key={card.to}>
               <Link
                 to={card.to}
-                className={`flex h-full flex-col rounded-lg border p-4 shadow-card transition hover:shadow-lift ${TONES[card.tone]}`}
+                className={`group flex h-full flex-col rounded-xl border bg-white p-5 shadow-card transition-all hover:-translate-y-0.5 hover:shadow-lift ${TONES[card.tone].card}`}
               >
-                <div className="flex items-baseline gap-2">
-                  <span
-                    aria-hidden
-                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/70 text-xs font-semibold text-ink"
-                  >
-                    {index + 1}
+                <div className="flex items-center gap-3">
+                  <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${TONES[card.tone].icon}`}>
+                    <card.icon />
                   </span>
                   <h3 className="font-semibold text-ink">{card.title}</h3>
                 </div>
-                <p className="mt-1 flex-1 text-sm text-slate-700">{card.body}</p>
-                <span className="mt-3 text-sm font-medium text-civic-700 underline underline-offset-2">
-                  {card.cta} →
+                <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-700">{card.body}</p>
+                <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-civic-700">
+                  {card.cta}
+                  <IconArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
               </Link>
             </li>
@@ -121,11 +148,16 @@ export default function Home() {
       <section>
         <h2 className="text-xl font-semibold text-ink">{t('homeNumbersTitle')}</h2>
         <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {stats.map((s) => (
-            <li key={s.label}>
-              <Link to={s.to} className="card-link block p-3">
-                <span className="block text-2xl font-semibold text-ink">{s.value}</span>
-                <span className="mt-0.5 block text-xs text-slate-600">{s.label}</span>
+          {stats.map((stat) => (
+            <li key={stat.label}>
+              <Link to={stat.to} className="stat-tile">
+                <span className="flex items-start justify-between gap-2">
+                  <span className="text-3xl font-semibold text-ink">{stat.value}</span>
+                  <span className="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500">
+                    <stat.icon className="h-4 w-4" />
+                  </span>
+                </span>
+                <span className="mt-2 block text-xs leading-snug text-slate-600">{stat.label}</span>
               </Link>
             </li>
           ))}

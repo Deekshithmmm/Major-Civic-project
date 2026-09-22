@@ -5,6 +5,15 @@
 @layer base {
   body {
     @apply bg-slate-50 text-slate-900 antialiased;
+    /* A faint tint behind the page so white cards read as raised rather than as the page itself. */
+    background-image: radial-gradient(60rem 30rem at 50% -10rem, rgba(22, 96, 88, 0.07), transparent);
+    background-repeat: no-repeat;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply tracking-[-0.01em];
   }
 
   /* WCAG AA: a visible, high-contrast focus ring on every interactive element. */
@@ -26,14 +35,15 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md bg-civic-600 px-4 py-2.5 text-white
-           font-medium transition-colors hover:bg-civic-700 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-civic-600 px-4 py-2.5 text-white
+           font-medium shadow-sm transition-all hover:bg-civic-700 hover:shadow active:translate-y-px
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:active:translate-y-0;
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center gap-1.5 rounded-md border border-slate-300 bg-white
-           px-4 py-2.5 font-medium text-slate-800 transition-colors hover:bg-slate-100 disabled:opacity-50
-           disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white
+           px-4 py-2.5 font-medium text-slate-800 transition-all hover:border-slate-400 hover:bg-slate-50
+           active:translate-y-px disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0;
   }
 
   .field-label {
@@ -41,29 +51,53 @@
   }
 
   .field-input {
-    @apply w-full rounded-md border border-slate-300 px-3 py-2.5 text-slate-900 transition-colors
-           placeholder:text-slate-500 focus:border-civic-600;
+    @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-slate-900 shadow-sm
+           transition-colors placeholder:text-slate-400 focus:border-civic-600;
   }
 
   .card {
-    @apply rounded-lg border border-slate-200 bg-white p-4 shadow-card;
+    @apply rounded-xl border border-slate-200/80 bg-white p-4 shadow-card;
   }
 
   /* Sets no display, so a caller can be block or flex. */
   .card-link {
-    @apply rounded-lg border border-slate-200 bg-white p-4 shadow-card transition
-           hover:border-civic-300 hover:shadow-lift;
+    @apply rounded-xl border border-slate-200/80 bg-white p-4 shadow-card transition-all
+           hover:-translate-y-0.5 hover:border-civic-300 hover:shadow-lift;
   }
 
   .pill {
-    @apply inline-block rounded-full px-2.5 py-0.5 text-xs font-semibold;
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+  }
+
+  /* The dot carries the status colour at a glance; the text carries it for everyone else. */
+  .pill-dot {
+    @apply h-1.5 w-1.5 rounded-full bg-current opacity-70;
   }
 
   .muted {
     @apply text-sm text-slate-600;
   }
+
+  .hero {
+    @apply relative overflow-hidden rounded-2xl border border-civic-600/15 bg-gradient-to-br
+           from-civic-50 via-white to-white p-6 sm:p-8;
+  }
+
+  .stat-tile {
+    @apply flex h-full flex-col justify-between rounded-xl border border-slate-200/80 bg-white p-4
+           shadow-card transition-all hover:-translate-y-0.5 hover:border-civic-300 hover:shadow-lift;
+  }
+
+  .table-head {
+    @apply border-b border-slate-300 text-left text-xs uppercase tracking-wide text-slate-600;
+  }
 }
 
 .leaflet-container {
-  @apply h-full w-full rounded-md;
+  @apply h-full w-full rounded-lg;
+}
+
+/* Leaflet's popup is white-on-white against the light basemap without a little definition. */
+.leaflet-popup-content-wrapper {
+  @apply rounded-lg shadow-lift;
 }

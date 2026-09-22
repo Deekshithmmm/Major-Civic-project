@@ -85,7 +85,7 @@ export default function Transparency() {
           <table className="w-full min-w-[46rem] border-collapse text-sm">
             <caption className="sr-only">Police station response metrics</caption>
             <thead>
-              <tr className="border-b border-slate-300 text-left">
+              <tr className="table-head">
                 <th scope="col" className="py-2 pr-3">Station</th>
                 <th scope="col" className="py-2 pr-3">Reports (30d)</th>
                 <th scope="col" className="py-2 pr-3">Unacknowledged past SLA</th>
@@ -173,7 +173,7 @@ export default function Transparency() {
             <table className="w-full min-w-[44rem] border-collapse text-sm">
               <caption className="sr-only">Public case record by stage</caption>
               <thead>
-                <tr className="border-b border-slate-300 text-left">
+                <tr className="table-head">
                   <th scope="col" className="py-2 pr-3">Offence</th>
                   <th scope="col" className="py-2 pr-3">Ward</th>
                   <th scope="col" className="py-2 pr-3">Reported</th>

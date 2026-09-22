@@ -307,6 +307,9 @@ Listed explicitly because several of these look done from the outside and are no
 - **Module 3 phone opt-in keeps only the first subscriber** per issue, since `contact_token` is
   1:1 with the issue. Ten people reporting one pothole means one of them gets SMS updates.
 - **Hindi and Kannada strings are a first pass** and need a fluent-speaker review.
+- **Web fonts load from Google Fonts** (Inter, plus Noto Sans Devanagari and Kannada for the
+  Hindi and Kannada UI). A deployment that cannot reach them falls back to the system font
+  stack; self-host the files if that matters.
 - **WCAG AA is designed for, not audited.** Labels, focus rings, `aria-*` attributes, a skip
   link and a keyboard-accessible alternative to the map pin are all in place; no assistive-tech
   testing or contrast audit has been run.

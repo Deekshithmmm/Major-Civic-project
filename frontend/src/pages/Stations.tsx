@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet'
+import { MapContainer, Marker, Popup, useMapEvents } from 'react-leaflet'
 
+import MapTiles from '../components/MapTiles'
 import { ErrorNote, Loading } from '../components/Feedback'
 import { DEMO_CITY_CENTER, pinMarker, statusMarker } from '../components/mapIcons'
 import { apiGet, type StationDirectoryEntry } from '../lib/api'
@@ -56,10 +57,7 @@ export default function Stations() {
 
       <div className="h-80 overflow-hidden rounded-md border border-slate-300">
         <MapContainer center={DEMO_CITY_CENTER} zoom={12} scrollWheelZoom={false}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <MapTiles />
           <ClickHandler onPick={setPicked} />
           {picked && <Marker position={[picked.lat, picked.lng]} icon={pinMarker} />}
           {stations

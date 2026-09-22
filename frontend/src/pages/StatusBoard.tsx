@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker, Popup } from 'react-leaflet'
 
+import MapTiles from '../components/MapTiles'
 import { EmptyState, ErrorNote, Loading } from '../components/Feedback'
 import StatusBadge from '../components/StatusBadge'
 import TrackingCode from '../components/TrackingCode'
@@ -75,10 +76,7 @@ export default function StatusBoard() {
 
       <div className="h-80 overflow-hidden rounded-md border border-slate-300">
         <MapContainer center={DEMO_CITY_CENTER} zoom={12} scrollWheelZoom={false}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <MapTiles />
           {visible.map((issue) => (
             <Marker key={issue.id} position={[issue.lat, issue.lng]} icon={statusMarker(issue.status)}>
               <Popup>

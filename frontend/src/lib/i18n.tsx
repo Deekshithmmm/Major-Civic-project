@@ -141,6 +141,7 @@ const STRINGS = {
     hi: 'नागरिक समस्याएँ, भ्रष्टाचार और उल्लंघन दर्ज करें। किसी खाते की आवश्यकता नहीं, और शिकायतें डिफ़ॉल्ट रूप से गुमनाम हैं।',
     kn: 'ನಾಗರಿಕ ಸಮಸ್ಯೆಗಳು, ಭ್ರಷ್ಟಾಚಾರ ಮತ್ತು ಉಲ್ಲಂಘನೆಗಳನ್ನು ವರದಿ ಮಾಡಿ. ಖಾತೆ ಅಗತ್ಯವಿಲ್ಲ, ಮತ್ತು ದೂರುಗಳು ಪೂರ್ವನಿಯೋಜಿತವಾಗಿ ಅನಾಮಧೇಯ.',
   },
+  heroBadge: { en: 'Anonymous by default', hi: 'डिफ़ॉल्ट रूप से गुमनाम', kn: 'ಪೂರ್ವನಿಯೋಜಿತವಾಗಿ ಅನಾಮಧೇಯ' },
   homeModulesTitle: { en: 'What would you like to report?', hi: 'आप क्या दर्ज करना चाहते हैं?', kn: 'ನೀವು ಏನು ವರದಿ ಮಾಡಲು ಬಯಸುತ್ತೀರಿ?' },
   homeModulesIntro: {
     en: 'Four sections, each with its own route to the right office. Pick the one that matches what you saw.',

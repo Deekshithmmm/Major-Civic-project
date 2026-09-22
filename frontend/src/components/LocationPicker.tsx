@@ -1,4 +1,5 @@
-import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet'
+import { MapContainer, Marker, useMapEvents } from 'react-leaflet'
+import MapTiles from './MapTiles'
 
 import { DEMO_CITY_CENTER, pinMarker } from './mapIcons'
 
@@ -24,10 +25,7 @@ export default function LocationPicker({
     <div>
       <div className="h-64 overflow-hidden rounded-md border border-slate-300">
         <MapContainer center={DEMO_CITY_CENTER} zoom={13} scrollWheelZoom={false}>
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+          <MapTiles />
           <ClickHandler onPick={onChange} />
           {value && <Marker position={[value.lat, value.lng]} icon={pinMarker} />}
         </MapContainer>

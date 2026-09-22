@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
 
 import LanguagePicker from './components/LanguagePicker'
+import { IconShield } from './components/icons'
 import CorruptionFeed from './pages/CorruptionFeed'
 import CorruptionReport from './pages/CorruptionReport'
 import EmergencyTriage from './pages/EmergencyTriage'
@@ -76,11 +77,11 @@ export default function App() {
         Skip to content
       </a>
 
-      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/85 backdrop-blur-md">
         <div className="mx-auto flex max-w-5xl items-center gap-2 px-4 py-3">
           <NavLink to="/" className="mr-auto flex items-center gap-2 text-lg font-semibold text-ink">
-            <span aria-hidden className="grid h-7 w-7 place-items-center rounded-md bg-civic-600 text-sm text-white">
-              CA
+            <span aria-hidden className="grid h-8 w-8 place-items-center rounded-lg bg-civic-600 text-white shadow-sm">
+              <IconShield className="h-5 w-5" />
             </span>
             <span className="hidden sm:inline">{t('appName')}</span>
           </NavLink>

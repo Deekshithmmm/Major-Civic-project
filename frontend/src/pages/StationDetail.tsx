@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { MapContainer, Marker, TileLayer } from 'react-leaflet'
+import { MapContainer, Marker } from 'react-leaflet'
 
+import MapTiles from '../components/MapTiles'
 import { ErrorNote, Loading } from '../components/Feedback'
 import { statusMarker } from '../components/mapIcons'
 import { apiGet, type StationDetail as StationDetailType } from '../lib/api'
@@ -96,10 +97,7 @@ export default function StationDetail() {
       {station.lat !== null && station.lng !== null && (
         <div className="h-64 overflow-hidden rounded-md border border-slate-300">
           <MapContainer center={[station.lat, station.lng]} zoom={15} scrollWheelZoom={false}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+          <MapTiles />
             <Marker position={[station.lat, station.lng]} icon={statusMarker('acknowledged')} />
           </MapContainer>
         </div>
