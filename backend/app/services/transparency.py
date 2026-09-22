@@ -70,6 +70,13 @@ def station_ledger(db: Session) -> list[StationLedgerRow]:
     now = datetime.now(timezone.utc)
     stations = db.execute(select(PoliceStation).order_by(PoliceStation.name)).scalars().all()
 
+    all_fir_report_ids = set(db.execute(select(FirRecord.report_id)).scalars().all())
+    public_report_ids = set(
+        db.execute(
+            select(EmergencyReport.id).where(EmergencyReport.category.in_(PUBLIC_CATEGORIES))
+        ).scalars().all()
+    )
+
     rows: list[StationLedgerRow] = []
     for station in stations:
         reports = db.execute(
@@ -86,11 +93,20 @@ def station_ledger(db: Session) -> list[StationLedgerRow]:
             r for r in reports
             if r.acknowledged_at is None and r.created_at < now - timedelta(hours=ACK_SLA_HOURS)
         ]
-        # An FIR counts when the station actually registered one in its register.
-        fir_report_ids = set(
+        # Two different questions, so two different sets.
+        #
+        # "Did this station register an FIR" credits the station that registered it, even after a
+        # Zero FIR moves the investigation elsewhere. Counting only FIRs on reports the station
+        # still holds would show a station that correctly registered and transferred as having
+        # registered nothing - punishing exactly the behaviour a Zero FIR exists to produce.
+        registered_here = set(
             db.execute(select(FirRecord.report_id).where(FirRecord.station_id == station.id)).scalars().all()
         )
-        firs = [r for r in reports if r.id in fir_report_ids]
+        firs = [rid for rid in registered_here if rid in public_report_ids]
+
+        # "Does this report have an FIR at all" must look at every station's register, or a
+        # report received on transfer would look unregistered here and flag the wrong station.
+        fir_report_ids = all_fir_report_ids
         ack_hours = [
             (r.acknowledged_at - r.created_at).total_seconds() / 3600
             for r in reports

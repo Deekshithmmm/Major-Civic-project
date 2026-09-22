@@ -125,3 +125,20 @@ class CaseDiaryResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class StationDetailResponse(StationDirectoryEntry):
+    """
+    Everything the public may know about one station: where it is, and how it responds to what
+    it receives. Never any case detail - the per-report data stays inside the station section.
+    """
+
+    reports_30d: int
+    reports_90d: int
+    unacknowledged_past_sla: int
+    firs_registered: int
+    fir_conversion_rate: float | None
+    median_ack_hours: float | None
+    open_past_fir_sla: int
+    closed_without_fir: int
+    flagged_red: bool

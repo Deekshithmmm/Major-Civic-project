@@ -562,6 +562,27 @@ def main() -> int:
         not zero_firs or zero_firs[0]["transferred_to_station_id"] is not None,
     )
 
+    detail = requests.get(f"{BASE}/api/station/{stations[0]['id']}", timeout=10)
+    check("a station has a public detail page", detail.status_code == 200, str(detail.status_code))
+    check(
+        "station detail carries its response metrics, not case data",
+        detail.status_code != 200
+        or ("firs_registered" in detail.json() and "reports" not in detail.json()),
+    )
+    check(
+        "an unknown station id is a clean 404",
+        requests.get(f"{BASE}/api/station/{uuid.uuid4()}", timeout=10).status_code == 404,
+    )
+
+    zero_station = next((s for s in stations if s["code"] == "PS-05"), None)
+    if zero_station:
+        zd = requests.get(f"{BASE}/api/station/{zero_station['id']}", timeout=10).json()
+        check(
+            "a station that registered a Zero FIR and transferred it still gets the credit",
+            zd["firs_registered"] >= 1,
+            f"firs_registered={zd['firs_registered']}",
+        )
+
     ledger_after = requests.get(f"{BASE}/api/emergency/ledger", timeout=15).json()
     check(
         "the public ledger counts FIRs from the station register",

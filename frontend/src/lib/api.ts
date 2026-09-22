@@ -309,6 +309,18 @@ export type StationDirectoryEntry = {
   distance_km: number | null
 }
 
+export type StationDetail = StationDirectoryEntry & {
+  reports_30d: number
+  reports_90d: number
+  unacknowledged_past_sla: number
+  firs_registered: number
+  fir_conversion_rate: number | null
+  median_ack_hours: number | null
+  open_past_fir_sla: number
+  closed_without_fir: number
+  flagged_red: boolean
+}
+
 export type StationSummary = {
   id: string
   name: string

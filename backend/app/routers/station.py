@@ -44,6 +44,7 @@ from app.schemas.station import (
     DiaryNoteRequest,
     FirResponse,
     RegisterFirRequest,
+    StationDetailResponse,
     StationDirectoryEntry,
     StationReportRow,
     StationSummary,
@@ -56,7 +57,7 @@ from app.services.station import (
     resolve_station,
     station_distance_km,
 )
-from app.services.transparency import ACK_SLA_HOURS, FIR_SLA_DAYS
+from app.services.transparency import ACK_SLA_HOURS, FIR_SLA_DAYS, station_ledger
 
 router = APIRouter(prefix="/api/station", tags=["police-station"])
 
@@ -596,3 +597,33 @@ def close_fir(
     db.commit()
     db.refresh(fir)
     return _fir_response(fir, station.name)
+
+
+# Declared last on purpose: a path parameter here would otherwise shadow /directory, /nearest,
+# /me, /diary, /reports and /firs, which are matched in declaration order.
+@router.get("/{station_id}", response_model=StationDetailResponse)
+def station_detail(station_id: uuid.UUID, db: Session = Depends(get_db)):
+    """
+    Public profile of one station: contact details, and how it responds to what it receives.
+    Carries no case data - the same metrics as the response ledger, for this station alone.
+    """
+    station = db.get(PoliceStation, station_id)
+    if not station or not station.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such station")
+
+    wards = {w.id: w.name for w in db.execute(select(Ward)).scalars().all()}
+    base = _directory_entry(db, station, wards)
+
+    row = next((r for r in station_ledger(db) if r.station_id == str(station.id)), None)
+    return StationDetailResponse(
+        **base.model_dump(),
+        reports_30d=row.reports_30d if row else 0,
+        reports_90d=row.reports_90d if row else 0,
+        unacknowledged_past_sla=row.unacknowledged_past_sla if row else 0,
+        firs_registered=row.firs_registered if row else 0,
+        fir_conversion_rate=row.fir_conversion_rate if row else None,
+        median_ack_hours=row.median_ack_hours if row else None,
+        open_past_fir_sla=row.open_past_fir_sla if row else 0,
+        closed_without_fir=row.closed_without_fir if row else 0,
+        flagged_red=row.flagged_red if row else False,
+    )

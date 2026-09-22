@@ -9,6 +9,7 @@ import IssueDetail from './pages/IssueDetail'
 import OfficerDashboard from './pages/OfficerDashboard'
 import OfficerLogin from './pages/OfficerLogin'
 import ReportIssue from './pages/ReportIssue'
+import StationDetail from './pages/StationDetail'
 import Stations from './pages/Stations'
 import StatusBoard from './pages/StatusBoard'
 import TrackIssue from './pages/TrackIssue'
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/emergency" element={<EmergencyTriage />} />
           <Route path="/transparency" element={<Transparency />} />
           <Route path="/stations" element={<Stations />} />
+          <Route path="/stations/:stationId" element={<StationDetail />} />
 
           {/* Officials */}
           <Route path="/officer" element={<OfficerLogin />} />

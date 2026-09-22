@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet'
 
 import { DEMO_CITY_CENTER, pinMarker, statusMarker } from '../components/mapIcons'
@@ -90,30 +91,54 @@ export default function Stations() {
             {nearest.address} · {nearest.distance_km} km
           </p>
           {nearest.contact_phone && (
-            <a href={`tel:${nearest.contact_phone}`} className="mt-1 inline-block text-sm text-civic-700 underline">
+            <a href={`tel:${nearest.contact_phone}`} className="mt-1 block text-sm text-civic-700 underline">
               {nearest.contact_phone}
             </a>
           )}
+          <Link
+            to={`/stations/${nearest.id}`}
+            className="mt-2 inline-block text-sm font-medium text-civic-700 underline underline-offset-2"
+          >
+            {t('stationViewAll')} →
+          </Link>
         </div>
       )}
 
       <ul className="grid gap-3 sm:grid-cols-2">
         {stations.map((s) => (
-          <li key={s.id} className="card">
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <p className="font-semibold text-ink">{s.name}</p>
-              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold">{s.code}</span>
-            </div>
-            <p className="text-sm text-slate-700">{s.address}</p>
-            <p className="mt-1 text-xs text-slate-600">
-              {s.ward_name}
-              {s.sho_name && <> · SHO {s.sho_name}</>}
-            </p>
-            {s.contact_phone && (
-              <a href={`tel:${s.contact_phone}`} className="mt-1 inline-block text-sm text-civic-700 underline">
-                {s.contact_phone}
-              </a>
-            )}
+          <li key={s.id}>
+            <Link
+              to={`/stations/${s.id}`}
+              className="flex h-full flex-col rounded-lg border border-slate-200 bg-white p-4 hover:border-civic-600/40 hover:shadow-sm"
+            >
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="font-semibold text-ink">{s.name}</span>
+                <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold">{s.code}</span>
+              </div>
+
+              <dl className="mt-2 space-y-1 text-sm">
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-slate-600">{t('stationAddress')}</dt>
+                  <dd className="text-slate-800">{s.address ?? '—'}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-slate-600">{t('stationWard')}</dt>
+                  <dd className="text-slate-800">{s.ward_name ?? '—'}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-slate-600">{t('stationSho')}</dt>
+                  <dd className="text-slate-800">{s.sho_name ?? '—'}</dd>
+                </div>
+                <div className="flex gap-2">
+                  <dt className="w-20 shrink-0 text-slate-600">{t('stationPhone')}</dt>
+                  <dd className="text-slate-800">{s.contact_phone ?? '—'}</dd>
+                </div>
+              </dl>
+
+              <span className="mt-3 text-sm font-medium text-civic-700 underline underline-offset-2">
+                {t('stationViewAll')} →
+              </span>
+            </Link>
           </li>
         ))}
       </ul>

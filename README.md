@@ -144,7 +144,7 @@ With the stack running and freshly seeded:
 cd backend && python -m tests.smoke_test
 ```
 
-112 checks covering the guarantees that actually matter, across all four modules: EXIF
+116 checks covering the guarantees that actually matter, across all four modules: EXIF
 stripping verified on the stored photo, GPS/device tags and audio verified gone from the stored
 video, 50m duplicate clustering, proof-gated resolution, SLA breach + shareable card,
 officer-confirmed challans with the fine ladder read from config, appeal separation of duties,
@@ -159,7 +159,7 @@ and every Module 4 route, and a municipal officer is refused Module 2 reports.
 
 It's safe to re-run without resetting — it picks a fresh map location each time so it never
 collides with its own earlier data, and skips the challan flow if a previous run already
-confirmed the one seeded ANPR case (108 passed / 1 skipped instead of 112). For the full set,
+confirmed the one seeded ANPR case (112 passed / 1 skipped instead of 116). For the full set,
 reset first:
 
 ```bash
