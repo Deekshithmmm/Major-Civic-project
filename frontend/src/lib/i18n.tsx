@@ -28,6 +28,7 @@ const STRINGS = {
   navTrack: { en: 'Track a report', hi: 'शिकायत ट्रैक करें', kn: 'ದೂರು ಟ್ರ್ಯಾಕ್ ಮಾಡಿ' },
   navOfficer: { en: 'Officer login', hi: 'अधिकारी लॉगिन', kn: 'ಅಧಿಕಾರಿ ಲಾಗಿನ್' },
   language: { en: 'Language', hi: 'भाषा', kn: 'ಭಾಷೆ' },
+  menu: { en: 'Menu', hi: 'मेन्यू', kn: 'ಮೆನು' },
 
   reportTitle: { en: 'Report a civic infrastructure issue', hi: 'नागरिक अवसंरचना समस्या दर्ज करें', kn: 'ನಾಗರಿಕ ಮೂಲಸೌಕರ್ಯ ಸಮಸ್ಯೆ ದಾಖಲಿಸಿ' },
   reportAnonymous: {

@@ -3,9 +3,11 @@ import { useState } from 'react'
 import StatusBadge from '../components/StatusBadge'
 import { ApiError, apiGet, type IssueDetail } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 export default function TrackIssue() {
   const { t } = useI18n()
+  usePageTitle('Track a report')
   const [token, setToken] = useState('')
   const [issue, setIssue] = useState<IssueDetail | null>(null)
   const [error, setError] = useState<string | null>(null)

@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { MapContainer, Marker, TileLayer } from 'react-leaflet'
 
+import { ErrorNote, Loading } from '../components/Feedback'
 import { statusMarker } from '../components/mapIcons'
 import { apiGet, type StationDetail as StationDetailType } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 function Stat({ label, value, tone }: { label: string; value: string | number; tone?: 'bad' | 'good' }) {
   return (
@@ -26,6 +28,7 @@ export default function StationDetail() {
   const { t } = useI18n()
   const [station, setStation] = useState<StationDetailType | null>(null)
   const [error, setError] = useState<string | null>(null)
+  usePageTitle(station?.name ?? 'Police station')
 
   useEffect(() => {
     if (!stationId) return
@@ -34,14 +37,8 @@ export default function StationDetail() {
       .catch(() => setError(t('errorGeneric')))
   }, [stationId, t])
 
-  if (error) {
-    return (
-      <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-        {error}
-      </p>
-    )
-  }
-  if (!station) return <p className="text-slate-600">…</p>
+  if (error) return <ErrorNote message={error} />
+  if (!station) return <Loading rows={4} />
 
   return (
     <div className="space-y-6">

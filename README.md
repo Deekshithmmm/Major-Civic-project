@@ -7,6 +7,8 @@ only, no live government API integration, no real personal data.
 > Draft engineering project. Not legal advice. See the spec's Appendix for the legal reasoning
 > behind the design choices called out below.
 
+A scripted walkthrough for presenting it is in [`docs/DEMO.md`](docs/DEMO.md).
+
 ## What's built
 
 All four modules are implemented, each with a citizen-facing flow and an officer-side view.
@@ -18,7 +20,7 @@ All four modules are implemented, each with a citizen-facing flow and an officer
 | Module 1 — Violation detection & enforcement assist | Built end to end, **except the CV pipeline**: there is no YOLOv8 detection and no ANPR/OCR, so cases arrive from citizen uploads or seed data and ANPR-path cases have no plate resolved until an officer supplies one. Officer review, challan issuance off a config-driven fine ladder, disputes and second-officer appeals all work. |
 | Module 2 — Anonymous corruption reporting | Built end to end: anonymous upload with browser-side coarse geohashing, routing-rules table, pre-publication moderation, public feed with status badges, tracking tokens. **Not built:** uploader-driven extra blur regions, audio muting, device-level rate limiting, takedown/right-of-reply, Grievance Officer workflow. |
 | Police station section | Built: station network with locations and nearest-station routing, General Diary, FIR register with station-issued numbers, Zero FIR transfer, case diary, chargesheet and closure — see below. |
-| Module 4 — Emergency reporting & evidence custody | Built: triage screen that leads with a 112 call, hard stop for any offence involving a minor, sealed evidence vault with chain of custody, case-number-gated investigating-officer access, and the public transparency layer (station response ledger + aggregate hotspot map). **Not built:** storage-policy-level separation at the bucket layer, per-report encryption keys, auto-purge on a retention schedule, and the irreversible video blur that restricted categories would need (video is refused there instead). |
+| Module 4 — Emergency reporting & evidence custody | Built: triage screen that leads with a 112 call, hard stop for any offence involving a minor, sealed evidence vault with chain of custody, case-number-gated investigating-officer access, and the public transparency layer (station response ledger, aggregate hotspot map, and a stage-gated case record that opens at chargesheet). **Not built:** storage-policy-level separation at the bucket layer, per-report encryption keys, auto-purge on a retention schedule, and the irreversible video blur that restricted categories would need (video is refused there instead). |
 
 ### The police station section
 
@@ -144,22 +146,23 @@ With the stack running and freshly seeded:
 cd backend && python -m tests.smoke_test
 ```
 
-116 checks covering the guarantees that actually matter, across all four modules: EXIF
+117 checks covering the guarantees that actually matter, across all four modules: EXIF
 stripping verified on the stored photo, GPS/device tags and audio verified gone from the stored
 video, 50m duplicate clustering, proof-gated resolution, SLA breach + shareable card,
 officer-confirmed challans with the fine ladder read from config, appeal separation of duties,
 the police-personnel routing rule that must never notify local police, a corruption report that
 stays off the feed until moderated, the hard stop on any offence involving a minor, evidence
 refused without a case number and served only from the vault bucket, a hotspot map that
-suppresses cells below five and never carries a restricted category, and the station procedure
-chain from acknowledgement through FIR to chargesheet with a General Diary line for each step.
+suppresses cells below five and never carries a restricted category, the station procedure
+chain from acknowledgement through FIR to chargesheet with a General Diary line for each step,
+and a case record that discloses the court only once a chargesheet is filed.
 
 Role separation is asserted in both directions: a moderator is refused Module 1 identity data
 and every Module 4 route, and a municipal officer is refused Module 2 reports.
 
 It's safe to re-run without resetting — it picks a fresh map location each time so it never
 collides with its own earlier data, and skips the challan flow if a previous run already
-confirmed the one seeded ANPR case (112 passed / 1 skipped instead of 116). For the full set,
+confirmed the one seeded ANPR case (113 passed / 1 skipped instead of 117). For the full set,
 reset first:
 
 ```bash

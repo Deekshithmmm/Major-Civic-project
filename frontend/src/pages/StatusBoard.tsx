@@ -2,17 +2,21 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MapContainer, Marker, Popup, TileLayer } from 'react-leaflet'
 
+import { EmptyState, ErrorNote, Loading } from '../components/Feedback'
 import StatusBadge from '../components/StatusBadge'
 import TrackingCode from '../components/TrackingCode'
 import { DEMO_CITY_CENTER, statusMarker } from '../components/mapIcons'
 import { apiGet, type Issue, type IssueStatus } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 const STATUSES: IssueStatus[] = ['reported', 'acknowledged', 'in_progress', 'resolved', 'overdue']
 
 export default function StatusBoard() {
   const { t } = useI18n()
+  usePageTitle('Civic infrastructure')
   const [issues, setIssues] = useState<Issue[]>([])
+  const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<IssueStatus | 'all'>('all')
   const [error, setError] = useState<string | null>(null)
 
@@ -20,6 +24,7 @@ export default function StatusBoard() {
     apiGet<Issue[]>('/api/infra/issues')
       .then(setIssues)
       .catch(() => setError(t('errorGeneric')))
+      .finally(() => setLoading(false))
   }, [t])
 
   const visible = useMemo(
@@ -86,14 +91,12 @@ export default function StatusBoard() {
         </MapContainer>
       </div>
 
-      {error && (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-          {error}
-        </p>
-      )}
+      {error && <ErrorNote message={error} />}
 
-      {visible.length === 0 ? (
-        <p className="text-slate-600">{t('noIssues')}</p>
+      {loading ? (
+        <Loading />
+      ) : visible.length === 0 ? (
+        <EmptyState title={t('noIssues')} />
       ) : (
         <ul className="space-y-3">
           {visible.map((issue) => (

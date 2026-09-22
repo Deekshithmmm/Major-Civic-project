@@ -6,6 +6,7 @@ import ReportMedia from '../components/ReportMedia'
 import StatusBadge from '../components/StatusBadge'
 import { apiGet, type FeedItem, type Issue } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 type Card = {
   to: string
@@ -41,6 +42,7 @@ type PublicCase =
 
 export default function Home() {
   const { t } = useI18n()
+  usePageTitle('Home')
   const [issues, setIssues] = useState<Issue[]>([])
   const [feed, setFeed] = useState<FeedItem[]>([])
   const [violations, setViolations] = useState<ViolationStats | null>(null)

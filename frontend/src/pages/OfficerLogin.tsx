@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom'
 
 import { apiPost, setToken } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 export default function OfficerLogin() {
   const { t } = useI18n()
+  usePageTitle('Officer login')
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')

@@ -6,6 +6,7 @@ import TrackingCode from '../components/TrackingCode'
 import { ApiError, apiUpload } from '../lib/api'
 import { encodeGeohash } from '../lib/geohash'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 type Category =
   | 'assault_in_progress'
@@ -41,6 +42,7 @@ type SubmitResult = {
  */
 export default function EmergencyTriage() {
   const { t } = useI18n()
+  usePageTitle('Emergency')
   const [tier, setTier] = useState<'none' | 'a' | 'b'>('none')
   const [category, setCategory] = useState<Category>('assault_in_progress')
   const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null)

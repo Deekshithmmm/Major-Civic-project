@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import AllegationBadge from '../components/AllegationBadge'
+import { EmptyState, ErrorNote, Loading } from '../components/Feedback'
 import ReportMedia from '../components/ReportMedia'
 import { apiGet, type FeedItem } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 /**
  * The vertical feed from spec 2.3, with the three things that make it survivable: nothing appears
@@ -13,13 +15,16 @@ import { useI18n } from '../lib/i18n'
  */
 export default function CorruptionFeed() {
   const { t } = useI18n()
+  usePageTitle('Corruption reports')
   const [items, setItems] = useState<FeedItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     apiGet<FeedItem[]>('/api/corruption/feed')
       .then(setItems)
       .catch(() => setError(t('errorGeneric')))
+      .finally(() => setLoading(false))
   }, [t])
 
   return (
@@ -34,14 +39,12 @@ export default function CorruptionFeed() {
         </Link>
       </div>
 
-      {error && (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-          {error}
-        </p>
-      )}
+      {error && <ErrorNote message={error} />}
 
-      {items.length === 0 ? (
-        <p className="text-slate-600">{t('corrFeedEmpty')}</p>
+      {loading ? (
+        <Loading />
+      ) : items.length === 0 ? (
+        <EmptyState title={t('corrFeedEmpty')} />
       ) : (
         <ul className="max-h-[75vh] snap-y snap-mandatory space-y-4 overflow-y-auto">
           {items.map((item) => (

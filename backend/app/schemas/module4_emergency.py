@@ -96,3 +96,20 @@ class HotspotCellResponse(BaseModel):
     category: str
     report_count: int
     firs_registered: int
+
+
+class PublicCaseRecordResponse(BaseModel):
+    """
+    Stage-gated disclosure (spec 2.5). The court appears only once a chargesheet is filed;
+    nothing from the sexual-offence or minor categories appears at any stage.
+    """
+
+    report_id: str
+    category: str
+    ward_name: str
+    reported_on: str
+    status: str
+    fir_number: str | None
+    sections: str | None
+    court_name: str | None
+    outcome: str | None

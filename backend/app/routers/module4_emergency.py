@@ -36,6 +36,7 @@ from app.schemas.module4_emergency import (
     EvidenceAccessRequest,
     EvidenceAccessResponse,
     HotspotCellResponse,
+    PublicCaseRecordResponse,
     ReportCreateResponse,
     ReportStatusResponse,
     StationLedgerResponse,
@@ -46,7 +47,7 @@ from app.services.evidence_vault import evidence_url, seal, store_evidence
 from app.services.jurisdiction import resolve_ward
 from app.services.media_pipeline import IMAGE_CONTENT_TYPES, VIDEO_CONTENT_TYPES, process_and_store
 from app.services.notifications import send_sms
-from app.services.transparency import hotspot_map, station_ledger
+from app.services.transparency import hotspot_map, public_case_records, station_ledger
 
 router = APIRouter(prefix="/api/emergency", tags=["module4-emergency"])
 
@@ -326,3 +327,13 @@ def ledger(db: Session = Depends(get_db)):
 def hotspots(db: Session = Depends(get_db)):
     """Aggregate map: quarterly lag, k-anonymity of five, restricted categories excluded."""
     return [HotspotCellResponse(**cell.__dict__) for cell in hotspot_map(db)]
+
+
+@router.get("/cases", response_model=list[PublicCaseRecordResponse])
+def case_records(db: Session = Depends(get_db)):
+    """
+    The public case record. Before a chargesheet nothing case-specific is published beyond
+    category, ward, date and status; once it is filed, proceedings are public record anyway, so
+    the platform mirrors what is already open - and no more.
+    """
+    return [PublicCaseRecordResponse(**record.__dict__) for record in public_case_records(db)]

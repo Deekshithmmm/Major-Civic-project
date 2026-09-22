@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.models.jurisdiction import Ward
 from app.models.module4_emergency import EmergencyReport, OffenceCategory, PoliceStation
-from app.models.station import FirRecord
+from app.models.station import FirRecord, FirStatus
 
 # Never public, at any stage, in any form - including counts (spec 2.5).
 PUBLIC_CATEGORIES = [
@@ -191,3 +191,77 @@ def hotspot_map(db: Session) -> list[HotspotCell]:
         if len(group) >= K_ANONYMITY_THRESHOLD
     ]
     return sorted(cells, key=lambda c: (c.quarter, c.ward_name, c.category))
+
+
+@dataclass
+class PublicCaseRecord:
+    report_id: str
+    category: str
+    ward_name: str
+    reported_on: str
+    status: str
+    fir_number: str | None
+    sections: str | None
+    court_name: str | None
+    outcome: str | None
+
+
+def public_case_records(db: Session) -> list[PublicCaseRecord]:
+    """
+    Disclosure gated on case stage (spec 2.5, "Case record, opening at chargesheet").
+
+    Before a chargesheet is filed, nothing case-specific is public beyond category, ward, date and
+    status - no evidence, no names, no detail. Once it is filed, the proceedings are public record
+    anyway, so the sections and the court are shown. Sexual-offence and minor categories appear
+    here at no stage, which `PUBLIC_CATEGORIES` enforces.
+    """
+    wards = {w.id: w.name for w in db.execute(select(Ward)).scalars().all()}
+    reports = db.execute(
+        select(EmergencyReport)
+        .where(EmergencyReport.category.in_(PUBLIC_CATEGORIES))
+        .order_by(EmergencyReport.created_at.desc())
+    ).scalars().all()
+    firs = {
+        f.report_id: f
+        for f in db.execute(select(FirRecord)).scalars().all()
+    }
+
+    records: list[PublicCaseRecord] = []
+    for report in reports:
+        fir = firs.get(report.id)
+
+        if report.closed_at and not fir:
+            status = "Closed without FIR"
+        elif fir and fir.status == FirStatus.CHARGESHEET_FILED:
+            status = "Chargesheet filed"
+        elif fir and fir.status == FirStatus.CLOSED:
+            status = "Closed after investigation"
+        elif fir:
+            status = "Under investigation"
+        elif report.acknowledged_at:
+            status = "Acknowledged"
+        else:
+            status = "Report received"
+
+        chargesheeted = bool(fir and fir.status == FirStatus.CHARGESHEET_FILED)
+        concluded = bool(fir and fir.status == FirStatus.CLOSED)
+
+        records.append(
+            PublicCaseRecord(
+                report_id=str(report.id),
+                category=report.category.value,
+                ward_name=wards.get(report.ward_id, "Unassigned"),
+                reported_on=report.created_at.date().isoformat(),
+                status=status,
+                # An FIR number and the sections invoked become public once the FIR exists.
+                fir_number=fir.fir_number if fir else None,
+                sections=fir.sections if fir else None,
+                # The court only once the chargesheet is filed - not before.
+                court_name=fir.court_name if chargesheeted else None,
+                # Outcome is published either way, including a closure report.
+                outcome=(
+                    fir.closure_reason if concluded else (report.closed_without_fir_reason if report.closed_at and not fir else None)
+                ),
+            )
+        )
+    return records

@@ -11,11 +11,13 @@ import {
   type IssueCreateResult,
 } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 type LatLng = { lat: number; lng: number }
 
 export default function ReportIssue() {
   const { t } = useI18n()
+  usePageTitle('Report an issue')
   const [categories, setCategories] = useState<IssueCategory[]>([])
   const [categorySlug, setCategorySlug] = useState('')
   const [description, setDescription] = useState('')

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 
+import { ErrorNote } from '../components/Feedback'
 import { apiGet } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 type LedgerRow = {
   station_id: string
@@ -16,6 +18,18 @@ type LedgerRow = {
   open_past_fir_sla: number
   closed_without_fir: number
   flagged_red: boolean
+}
+
+type CaseRecord = {
+  report_id: string
+  category: string
+  ward_name: string
+  reported_on: string
+  status: string
+  fir_number: string | null
+  sections: string | null
+  court_name: string | null
+  outcome: string | null
 }
 
 type HotspotCell = {
@@ -33,13 +47,16 @@ type HotspotCell = {
  */
 export default function Transparency() {
   const { t } = useI18n()
+  usePageTitle('Accountability')
   const [ledger, setLedger] = useState<LedgerRow[]>([])
   const [hotspots, setHotspots] = useState<HotspotCell[]>([])
+  const [cases, setCases] = useState<CaseRecord[]>([])
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     apiGet<LedgerRow[]>('/api/emergency/ledger').then(setLedger).catch(() => setError(t('errorGeneric')))
     apiGet<HotspotCell[]>('/api/emergency/hotspots').then(setHotspots).catch(() => undefined)
+    apiGet<CaseRecord[]>('/api/emergency/cases').then(setCases).catch(() => undefined)
   }, [t])
 
   return (
@@ -53,11 +70,7 @@ export default function Transparency() {
         </p>
       </div>
 
-      {error && (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-          {error}
-        </p>
-      )}
+      {error && <ErrorNote message={error} />}
 
       <section>
         <h2 className="font-semibold text-ink">Station response ledger</h2>
@@ -141,6 +154,69 @@ export default function Transparency() {
               </li>
             ))}
           </ul>
+        )}
+      </section>
+
+      <section>
+        <h2 className="font-semibold text-ink">Case record</h2>
+        <p className="mb-3 text-sm text-slate-600">
+          Disclosure is gated on case stage. Before a chargesheet is filed nothing case-specific is
+          published beyond category, ward, date and status. Once it is filed the proceedings are
+          public record anyway, so the sections and the court appear — and no more. Sexual offence
+          and child cases appear here at no stage.
+        </p>
+
+        {cases.length === 0 ? (
+          <p className="text-slate-600">No cases on the public record yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[44rem] border-collapse text-sm">
+              <caption className="sr-only">Public case record by stage</caption>
+              <thead>
+                <tr className="border-b border-slate-300 text-left">
+                  <th scope="col" className="py-2 pr-3">Offence</th>
+                  <th scope="col" className="py-2 pr-3">Ward</th>
+                  <th scope="col" className="py-2 pr-3">Reported</th>
+                  <th scope="col" className="py-2 pr-3">Stage</th>
+                  <th scope="col" className="py-2 pr-3">FIR</th>
+                  <th scope="col" className="py-2 pr-3">Court / outcome</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cases.map((c) => (
+                  <tr key={c.report_id} className="border-b border-slate-200">
+                    <td className="py-2 pr-3">{c.category.replace(/_/g, ' ')}</td>
+                    <td className="py-2 pr-3">{c.ward_name}</td>
+                    <td className="py-2 pr-3">{c.reported_on}</td>
+                    <td className="py-2 pr-3">
+                      <span
+                        className={`pill ${
+                          c.status === 'Chargesheet filed'
+                            ? 'bg-emerald-200 text-emerald-900'
+                            : c.status === 'Report received'
+                              ? 'bg-slate-200'
+                              : 'bg-sky-200 text-sky-900'
+                        }`}
+                      >
+                        {c.status}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3">
+                      {c.fir_number ? (
+                        <>
+                          <span className="font-mono text-xs">{c.fir_number}</span>
+                          {c.sections && <span className="block text-xs text-slate-600">u/s {c.sections}</span>}
+                        </>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">{c.court_name ?? c.outcome ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 

@@ -10,9 +10,11 @@ import {
   type ViolationClass,
 } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 export default function ViolationReport() {
   const { t } = useI18n()
+  usePageTitle('Report a violation')
   const [classes, setClasses] = useState<ViolationClass[]>([])
   const [slug, setSlug] = useState('')
   const [point, setPoint] = useState<{ lat: number; lng: number } | null>(null)

@@ -438,6 +438,26 @@ def main() -> int:
         "hotspot map never carries a restricted category",
         all(cell["category"] not in ("sexual_offence_adult", "minor_involved") for cell in hotspots),
     )
+    cases = requests.get(f"{BASE}/api/emergency/cases", timeout=15)
+    check("the public case record is published", cases.status_code == 200, str(cases.status_code))
+    records = cases.json() if cases.status_code == 200 else []
+    check(
+        "no restricted category ever reaches the case record",
+        all(c["category"] not in ("sexual_offence_adult", "minor_involved", "human_trafficking") for c in records),
+    )
+    check(
+        "the court is disclosed only once a chargesheet is filed",
+        all(c["court_name"] is None for c in records if c["status"] != "Chargesheet filed"),
+    )
+    check(
+        "an FIR number becomes public once the FIR is registered",
+        any(c["fir_number"] for c in records) if records else True,
+    )
+    check(
+        "an outcome is published when a case is closed either way",
+        all(c["outcome"] for c in records if c["status"] == "Closed without FIR"),
+    )
+
     this_quarter = f"{datetime.now(timezone.utc).year} Q{(datetime.now(timezone.utc).month - 1) // 3 + 1}"
     check("hotspot map runs a quarter behind", all(cell["quarter"] != this_quarter for cell in hotspots))
 

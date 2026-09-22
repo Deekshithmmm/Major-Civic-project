@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
+import { ErrorNote, Loading } from '../components/Feedback'
 import ReportMedia from '../components/ReportMedia'
 import StatusBadge from '../components/StatusBadge'
 import TrackingCode from '../components/TrackingCode'
 import { apiGet, type IssueDetail as IssueDetailType, type ShareableCard } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 export default function IssueDetail() {
   const { issueId } = useParams()
@@ -14,6 +16,7 @@ export default function IssueDetail() {
   const [card, setCard] = useState<ShareableCard | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  usePageTitle(issue?.category_label ?? 'Report')
 
   useEffect(() => {
     if (!issueId) return
@@ -22,14 +25,8 @@ export default function IssueDetail() {
       .catch(() => setError(t('errorGeneric')))
   }, [issueId, t])
 
-  if (error) {
-    return (
-      <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-        {error}
-      </p>
-    )
-  }
-  if (!issue) return <p className="text-slate-600">…</p>
+  if (error) return <ErrorNote message={error} />
+  if (!issue) return <Loading rows={4} />
 
   return (
     <div className="max-w-2xl space-y-5">

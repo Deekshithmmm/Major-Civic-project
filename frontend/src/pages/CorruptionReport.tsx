@@ -13,6 +13,7 @@ import {
 } from '../lib/api'
 import { GEOHASH_CELL_DESCRIPTION, encodeGeohash } from '../lib/geohash'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 const PARTY_TYPES: { value: AccusedPartyType; label: string }[] = [
   { value: 'municipal_or_dept_staff', label: 'Municipal or departmental staff' },
@@ -23,6 +24,7 @@ const PARTY_TYPES: { value: AccusedPartyType; label: string }[] = [
 
 export default function CorruptionReport() {
   const { t } = useI18n()
+  usePageTitle('Report corruption')
   const [rules, setRules] = useState<RoutingRule[]>([])
   const [partyType, setPartyType] = useState<AccusedPartyType>('municipal_or_dept_staff')
   const [department, setDepartment] = useState('')

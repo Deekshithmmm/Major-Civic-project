@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet'
 
+import { ErrorNote, Loading } from '../components/Feedback'
 import { DEMO_CITY_CENTER, pinMarker, statusMarker } from '../components/mapIcons'
 import { apiGet, type StationDirectoryEntry } from '../lib/api'
 import { useI18n } from '../lib/i18n'
+import { usePageTitle } from '../lib/usePageTitle'
 
 function ClickHandler({ onPick }: { onPick: (p: { lat: number; lng: number }) => void }) {
   useMapEvents({
@@ -22,7 +24,9 @@ function ClickHandler({ onPick }: { onPick: (p: { lat: number; lng: number }) =>
  */
 export default function Stations() {
   const { t } = useI18n()
+  usePageTitle('Police stations')
   const [stations, setStations] = useState<StationDirectoryEntry[]>([])
+  const [loading, setLoading] = useState(true)
   const [picked, setPicked] = useState<{ lat: number; lng: number } | null>(null)
   const [nearest, setNearest] = useState<StationDirectoryEntry | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -31,6 +35,7 @@ export default function Stations() {
     apiGet<StationDirectoryEntry[]>('/api/station/directory')
       .then(setStations)
       .catch(() => setError(t('errorGeneric')))
+      .finally(() => setLoading(false))
   }, [t])
 
   useEffect(() => {
@@ -47,11 +52,7 @@ export default function Stations() {
         <p className="mt-1 max-w-2xl text-sm text-slate-700">{t('stationsIntro')}</p>
       </div>
 
-      {error && (
-        <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-800">
-          {error}
-        </p>
-      )}
+      {error && <ErrorNote message={error} />}
 
       <div className="h-80 overflow-hidden rounded-md border border-slate-300">
         <MapContainer center={DEMO_CITY_CENTER} zoom={12} scrollWheelZoom={false}>
@@ -103,6 +104,8 @@ export default function Stations() {
           </Link>
         </div>
       )}
+
+      {loading && <Loading rows={2} />}
 
       <ul className="grid gap-3 sm:grid-cols-2">
         {stations.map((s) => (
