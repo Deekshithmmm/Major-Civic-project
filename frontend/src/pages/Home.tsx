@@ -86,30 +86,51 @@ export default function Home() {
         <p className="mt-1 max-w-2xl text-slate-700">{t('homeIntro')}</p>
       </div>
 
-      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <li key={s.label}>
-            <Link to={s.to} className="card-link block p-3">
-              <span className="block text-2xl font-semibold text-ink">{s.value}</span>
-              <span className="mt-0.5 block text-xs text-slate-600">{s.label}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {/* The four modules come first. They are what someone arrives here to use; the counters
+          below are context, and putting them above pushed the actual sections off the screen. */}
+      <section>
+        <h2 className="text-xl font-semibold text-ink">{t('homeModulesTitle')}</h2>
+        <p className="mt-1 max-w-2xl text-sm text-slate-600">{t('homeModulesIntro')}</p>
 
-      <ul className="grid gap-4 sm:grid-cols-2">
-        {cards.map((card) => (
-          <li key={card.to}>
-            <Link to={card.to} className={`flex h-full flex-col rounded-lg border p-4 shadow-card transition hover:shadow-lift ${TONES[card.tone]}`}>
-              <h2 className="font-semibold text-ink">{card.title}</h2>
-              <p className="mt-1 flex-1 text-sm text-slate-700">{card.body}</p>
-              <span className="mt-3 text-sm font-medium text-civic-700 underline underline-offset-2">
-                {card.cta} →
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
+        <ul className="mt-4 grid gap-4 sm:grid-cols-2">
+          {cards.map((card, index) => (
+            <li key={card.to}>
+              <Link
+                to={card.to}
+                className={`flex h-full flex-col rounded-lg border p-4 shadow-card transition hover:shadow-lift ${TONES[card.tone]}`}
+              >
+                <div className="flex items-baseline gap-2">
+                  <span
+                    aria-hidden
+                    className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-white/70 text-xs font-semibold text-ink"
+                  >
+                    {index + 1}
+                  </span>
+                  <h3 className="font-semibold text-ink">{card.title}</h3>
+                </div>
+                <p className="mt-1 flex-1 text-sm text-slate-700">{card.body}</p>
+                <span className="mt-3 text-sm font-medium text-civic-700 underline underline-offset-2">
+                  {card.cta} →
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section>
+        <h2 className="text-xl font-semibold text-ink">{t('homeNumbersTitle')}</h2>
+        <ul className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {stats.map((s) => (
+            <li key={s.label}>
+              <Link to={s.to} className="card-link block p-3">
+                <span className="block text-2xl font-semibold text-ink">{s.value}</span>
+                <span className="mt-0.5 block text-xs text-slate-600">{s.label}</span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section>
         <h2 className="text-xl font-semibold text-ink">{t('homeCasesTitle')}</h2>

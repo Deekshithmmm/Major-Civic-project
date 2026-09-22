@@ -141,6 +141,13 @@ const STRINGS = {
     hi: 'नागरिक समस्याएँ, भ्रष्टाचार और उल्लंघन दर्ज करें। किसी खाते की आवश्यकता नहीं, और शिकायतें डिफ़ॉल्ट रूप से गुमनाम हैं।',
     kn: 'ನಾಗರಿಕ ಸಮಸ್ಯೆಗಳು, ಭ್ರಷ್ಟಾಚಾರ ಮತ್ತು ಉಲ್ಲಂಘನೆಗಳನ್ನು ವರದಿ ಮಾಡಿ. ಖಾತೆ ಅಗತ್ಯವಿಲ್ಲ, ಮತ್ತು ದೂರುಗಳು ಪೂರ್ವನಿಯೋಜಿತವಾಗಿ ಅನಾಮಧೇಯ.',
   },
+  homeModulesTitle: { en: 'What would you like to report?', hi: 'आप क्या दर्ज करना चाहते हैं?', kn: 'ನೀವು ಏನು ವರದಿ ಮಾಡಲು ಬಯಸುತ್ತೀರಿ?' },
+  homeModulesIntro: {
+    en: 'Four sections, each with its own route to the right office. Pick the one that matches what you saw.',
+    hi: 'चार अनुभाग, प्रत्येक का सही कार्यालय तक अपना रास्ता। जो आपने देखा उससे मेल खाता हो वह चुनें।',
+    kn: 'ನಾಲ್ಕು ವಿಭಾಗಗಳು, ಪ್ರತಿಯೊಂದಕ್ಕೂ ಸರಿಯಾದ ಕಚೇರಿಗೆ ತನ್ನದೇ ಮಾರ್ಗ. ನೀವು ನೋಡಿದ್ದಕ್ಕೆ ಹೊಂದುವದನ್ನು ಆಯ್ಕೆಮಾಡಿ.',
+  },
+  homeNumbersTitle: { en: 'Where things stand', hi: 'स्थिति क्या है', kn: 'ಪರಿಸ್ಥಿತಿ ಏನು' },
   infraTitle: { en: 'Civic infrastructure', hi: 'नागरिक अवसंरचना', kn: 'ನಾಗರಿಕ ಮೂಲಸೌಕರ್ಯ' },
   homeInfraBody: {
     en: 'Potholes, street lights, drains, garbage, water leaks. Routed to the responsible desk with a deadline, and tracked publicly.',
