@@ -47,6 +47,9 @@ class User(Base):
         UUID(as_uuid=True), nullable=True
     )
     department: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Police roles are posted to a station; station procedures and the reports queue are scoped
+    # by this, so one station's officers cannot work another station's cases.
+    police_station_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

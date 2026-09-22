@@ -9,6 +9,7 @@ import IssueDetail from './pages/IssueDetail'
 import OfficerDashboard from './pages/OfficerDashboard'
 import OfficerLogin from './pages/OfficerLogin'
 import ReportIssue from './pages/ReportIssue'
+import Stations from './pages/Stations'
 import StatusBoard from './pages/StatusBoard'
 import TrackIssue from './pages/TrackIssue'
 import Transparency from './pages/Transparency'
@@ -52,6 +53,7 @@ export default function App() {
             <NavItem to="/corruption" label={t('navCorruption')} />
             <NavItem to="/violations/report" label={t('navViolations')} />
             <NavItem to="/emergency" label={t('navEmergency')} />
+            <NavItem to="/stations" label={t('navStations')} />
             <NavItem to="/transparency" label={t('navTransparency')} />
             <NavItem to="/officer" label={t('navOfficer')} />
           </nav>
@@ -79,6 +81,7 @@ export default function App() {
           {/* Module 4 */}
           <Route path="/emergency" element={<EmergencyTriage />} />
           <Route path="/transparency" element={<Transparency />} />
+          <Route path="/stations" element={<Stations />} />
 
           {/* Officials */}
           <Route path="/officer" element={<OfficerLogin />} />

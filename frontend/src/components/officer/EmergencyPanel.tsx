@@ -10,7 +10,6 @@ type StationReport = {
   has_evidence: boolean
   acknowledged_at: string | null
   fir_number: string | null
-  fir_registered_at: string | null
   closed_at: string | null
   closed_without_fir_reason: string | null
   created_at: string
@@ -32,8 +31,11 @@ type ChainEntry = {
 }
 
 /**
- * Investigating-officer view. Evidence is never rendered in the list: it is opened one report at
- * a time, only against a case or FIR number, and every open appends to the chain of custody.
+ * Sealed evidence, and nothing else. The station's own procedures - acknowledging, registering an
+ * FIR, closing - live in StationPanel against the station's register.
+ *
+ * Evidence is never rendered in this list: it is opened one report at a time, only against a case
+ * or FIR number, and every open appends to the chain of custody.
  */
 export default function EmergencyPanel() {
   const [reports, setReports] = useState<StationReport[]>([])
@@ -44,25 +46,12 @@ export default function EmergencyPanel() {
   const [busy, setBusy] = useState<string | null>(null)
 
   const refresh = useCallback(() => {
-    apiGet<StationReport[]>('/api/emergency/officer/queue')
+    apiGet<StationReport[]>('/api/station/reports')
       .then(setReports)
       .catch(() => setError('Could not load the queue.'))
   }, [])
 
   useEffect(refresh, [refresh])
-
-  async function act(id: string, path: string, body?: unknown) {
-    setBusy(id)
-    setError(null)
-    try {
-      await apiPost(path, body)
-      refresh()
-    } catch {
-      setError('That action could not be completed.')
-    } finally {
-      setBusy(null)
-    }
-  }
 
   async function openEvidence(id: string) {
     const caseNumber = (caseNumbers[id] ?? '').trim()
@@ -126,47 +115,6 @@ export default function EmergencyPanel() {
                   {r.closed_at ? 'Closed' : r.fir_number ? `FIR ${r.fir_number}` : r.acknowledged_at ? 'Acknowledged' : 'Not acknowledged'}
                 </span>
               </div>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={busy === r.id || r.acknowledged_at !== null}
-                onClick={() => act(r.id, `/api/emergency/officer/reports/${r.id}/acknowledge`)}
-              >
-                Acknowledge
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={busy === r.id || r.fir_number !== null}
-                onClick={() => {
-                  const fir = caseNumbers[r.id]?.trim()
-                  if (!fir) {
-                    setError('Enter the FIR number in the field first.')
-                    return
-                  }
-                  act(r.id, `/api/emergency/officer/reports/${r.id}/fir`, { fir_number: fir })
-                }}
-              >
-                Register FIR
-              </button>
-              <button
-                type="button"
-                className="btn-secondary"
-                disabled={busy === r.id || r.closed_at !== null}
-                onClick={() => {
-                  const reason = caseNumbers[r.id]?.trim()
-                  if (!reason) {
-                    setError('Type the closure reason in the field first — closure without a reason is not accepted.')
-                    return
-                  }
-                  act(r.id, `/api/emergency/officer/reports/${r.id}/close`, { reason })
-                }}
-              >
-                Close without FIR
-              </button>
             </div>
 
             <div>

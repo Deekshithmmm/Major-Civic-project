@@ -293,3 +293,84 @@ export type Challan = {
   due_date: string
   status: string
 }
+
+// --- Police station types ---------------------------------------------------
+
+export type StationDirectoryEntry = {
+  id: string
+  name: string
+  code: string
+  address: string | null
+  lat: number | null
+  lng: number | null
+  contact_phone: string | null
+  sho_name: string | null
+  ward_name: string | null
+  distance_km: number | null
+}
+
+export type StationSummary = {
+  id: string
+  name: string
+  code: string
+  address: string | null
+  sho_name: string | null
+}
+
+export type DiaryEntry = {
+  id: string
+  entry_date: string
+  serial_no: number
+  entry_type: string
+  detail: string
+  report_id: string | null
+  fir_id: string | null
+  officer_user_id: string | null
+  created_at: string
+}
+
+export type StationReportRow = {
+  id: string
+  category: string
+  geohash: string
+  is_restricted: boolean
+  has_evidence: boolean
+  acknowledged_at: string | null
+  closed_at: string | null
+  closed_without_fir_reason: string | null
+  created_at: string
+  fir_id: string | null
+  fir_number: string | null
+  hours_since_report: number
+  overdue_for_acknowledgement: boolean
+  overdue_for_fir: boolean
+}
+
+export type FirRecord = {
+  id: string
+  fir_number: string
+  year: number
+  station_id: string
+  station_name: string | null
+  report_id: string
+  category: string | null
+  sections: string
+  is_zero_fir: boolean
+  transferred_to_station_id: string | null
+  investigating_officer_id: string | null
+  registered_at: string
+  investigation_deadline: string
+  status: string
+  chargesheet_filed_at: string | null
+  court_name: string | null
+  closure_reason: string | null
+  closed_at: string | null
+  days_remaining: number
+}
+
+export type CaseDiaryEntry = {
+  id: string
+  officer_user_id: string
+  detail: string
+  created_at: string
+}

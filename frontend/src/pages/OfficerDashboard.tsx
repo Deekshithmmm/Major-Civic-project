@@ -4,12 +4,13 @@ import { useNavigate } from 'react-router-dom'
 import EmergencyPanel from '../components/officer/EmergencyPanel'
 import InfraQueue from '../components/officer/InfraQueue'
 import ModerationQueue from '../components/officer/ModerationQueue'
+import StationPanel from '../components/officer/StationPanel'
 import VigilancePanel from '../components/officer/VigilancePanel'
 import ViolationQueue from '../components/officer/ViolationQueue'
 import { apiGet, clearToken, getToken, type CurrentUser } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 
-type TabId = 'infra' | 'violations' | 'moderation' | 'vigilance' | 'emergency'
+type TabId = 'infra' | 'violations' | 'moderation' | 'vigilance' | 'station' | 'emergency'
 
 /**
  * Which panels a role may open. This mirrors the API's own role checks rather than replacing
@@ -26,8 +27,10 @@ const TABS: { id: TabId; label: string; roles: string[] }[] = [
   { id: 'violations', label: 'Violations', roles: ['municipal_officer', 'admin'] },
   { id: 'moderation', label: 'Moderation', roles: ['moderator', 'admin'] },
   { id: 'vigilance', label: 'Vigilance', roles: ['vigilance_officer', 'admin'] },
+  // The station's own work: queue, FIR register and General Diary.
+  { id: 'station', label: 'Police station', roles: ['investigating_officer', 'admin'] },
   // Module 4 evidence is the sharpest separation in the system: no other role reaches it.
-  { id: 'emergency', label: 'Emergency evidence', roles: ['investigating_officer', 'admin'] },
+  { id: 'emergency', label: 'Sealed evidence', roles: ['investigating_officer', 'admin'] },
 ]
 
 export default function OfficerDashboard() {
@@ -104,6 +107,7 @@ export default function OfficerDashboard() {
       {tab === 'violations' && <ViolationQueue />}
       {tab === 'moderation' && <ModerationQueue />}
       {tab === 'vigilance' && <VigilancePanel />}
+      {tab === 'station' && <StationPanel />}
       {tab === 'emergency' && <EmergencyPanel />}
     </div>
   )

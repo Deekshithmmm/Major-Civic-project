@@ -13,5 +13,6 @@ from app.models import (  # noqa: F401
     module3_infra,
     module4_emergency,
     officials,
+    station,
     users,
 )

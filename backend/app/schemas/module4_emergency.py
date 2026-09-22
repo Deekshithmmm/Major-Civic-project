@@ -53,21 +53,6 @@ class ReportStatusResponse(BaseModel):
     created_at: datetime
 
 
-class StationReportResponse(BaseModel):
-    """Investigating-officer view. Never includes a link to the evidence itself."""
-
-    id: uuid.UUID
-    category: OffenceCategory
-    geohash: str
-    is_restricted: bool
-    has_evidence: bool
-    acknowledged_at: datetime | None
-    fir_number: str | None
-    fir_registered_at: datetime | None
-    closed_at: datetime | None
-    closed_without_fir_reason: str | None
-    created_at: datetime
-
 
 class EvidenceAccessRequest(BaseModel):
     case_or_fir_number: str
@@ -80,12 +65,6 @@ class EvidenceAccessResponse(BaseModel):
     chain_of_custody_entries: int
 
 
-class FirRequest(BaseModel):
-    fir_number: str
-
-
-class CloseRequest(BaseModel):
-    reason: str
 
 
 class ChainOfCustodyItem(BaseModel):

@@ -11,7 +11,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 
 from PIL import Image, ImageDraw
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.auth import hash_password
@@ -50,8 +50,10 @@ from app.models.module3_infra import (
     IssueStatusHistory,
 )
 from app.models.officials import ResponsibleDesk
+from app.models.station import CaseDiaryEntry, DiaryEntryType, FirRecord, FirStatus
 from app.models.users import User, UserRole
 from app.services.sla import compute_sla_deadline
+from app.services.station import investigation_deadline, log_diary, next_fir_number
 from app.services.tracking import new_tracking_code
 from app.services.storage import ensure_buckets, put_object
 
@@ -116,15 +118,30 @@ EMERGENCY_ROUTING_RULES = [
     (OffenceCategory.HUMAN_TRAFFICKING, "Anti Human Trafficking Unit and SHO", False, False),
 ]
 
+# code, name, ward, lat offset, lng offset, SHO, address
+STATIONS = [
+    ("PS-01", "Lakeview Police Station", "Lakeview Ward", 0.002, -0.003, "Insp. A. Menon", "1 Lake Road, Lakeview"),
+    ("PS-02", "Market Police Station", "Market Ward", -0.001, 0.002, "Insp. B. Das", "12 Bazaar Street, Market"),
+    ("PS-03", "Riverside Police Station", "Riverside Ward", 0.003, 0.001, "Insp. C. Pillai", "44 River Road, Riverside"),
+    ("PS-04", "Hillview Police Station", "Hillview Ward", -0.002, -0.002, "Insp. D. Reddy", "7 Hill Road, Hillview"),
+    # Second stations in the two busier wards.
+    ("PS-05", "Market East Police Station", "Market Ward", 0.006, 0.006, "Insp. E. Fernandes", "90 East Market Road"),
+    ("PS-06", "Riverside Industrial Police Station", "Riverside Ward", -0.006, 0.005, "Insp. F. Khan", "3 Mill Lane, Riverside"),
+]
+
+# (email, name, role, ward for non-police scoping, station code for police roles)
 USERS = [
-    ("admin@demo.city", "Admin User", UserRole.ADMIN, None),
-    ("officer.roads@demo.city", "R. Kumar (Municipal Officer)", UserRole.MUNICIPAL_OFFICER, None),
-    ("engineer.sanitation@demo.city", "S. Iyer (Dept Engineer)", UserRole.DEPARTMENT_ENGINEER, None),
-    ("moderator@demo.city", "M. Rao (Moderator)", UserRole.MODERATOR, None),
-    ("vigilance@demo.city", "V. Nair (Vigilance Officer)", UserRole.VIGILANCE_OFFICER, None),
-    # Riverside: the ward holding the seeded report with sealed evidence, so the
-    # jurisdiction-scoped evidence flow can actually be demonstrated.
-    ("investigator@demo.city", "I. Sharma (Investigating Officer)", UserRole.INVESTIGATING_OFFICER, "Riverside Ward"),
+    ("admin@demo.city", "Admin User", UserRole.ADMIN, None, None),
+    ("officer.roads@demo.city", "R. Kumar (Municipal Officer)", UserRole.MUNICIPAL_OFFICER, None, None),
+    ("engineer.sanitation@demo.city", "S. Iyer (Dept Engineer)", UserRole.DEPARTMENT_ENGINEER, None, None),
+    ("moderator@demo.city", "M. Rao (Moderator)", UserRole.MODERATOR, None, None),
+    ("vigilance@demo.city", "V. Nair (Vigilance Officer)", UserRole.VIGILANCE_OFFICER, None, None),
+    # Riverside holds the seeded report with sealed evidence, so this account demonstrates the
+    # jurisdiction-scoped evidence flow as well as the station procedures.
+    ("investigator@demo.city", "I. Sharma (SI, Riverside)", UserRole.INVESTIGATING_OFFICER, "Riverside Ward", "PS-03"),
+    ("sho.lakeview@demo.city", "A. Menon (Inspector, Lakeview)", UserRole.INVESTIGATING_OFFICER, "Lakeview Ward", "PS-01"),
+    ("sho.market@demo.city", "B. Das (Inspector, Market)", UserRole.INVESTIGATING_OFFICER, "Market Ward", "PS-02"),
+    ("io.riverside@demo.city", "P. Ganesh (SI, Riverside)", UserRole.INVESTIGATING_OFFICER, "Riverside Ward", "PS-03"),
 ]
 
 
@@ -277,35 +294,43 @@ def seed_emergency_routing_rules(db: Session) -> None:
 
 
 def seed_police_stations(db: Session, wards: dict[str, Ward]) -> dict[str, PoliceStation]:
-    stations = {}
-    for i, w in enumerate(WARDS, start=1):
-        code = f"PS-{i:02d}"
+    """
+    Six stations across four wards - two wards hold two each, which is why reports route to the
+    nearest station rather than assuming one ward means one station.
+    """
+    stations: dict[str, PoliceStation] = {}
+    for code, name, ward_name, dlat, dlng, sho, address in STATIONS:
         existing = db.execute(select(PoliceStation).where(PoliceStation.code == code)).scalars().first()
         if existing:
-            stations[w["name"]] = existing
+            stations[code] = existing
             continue
+        row = next(w for w in WARDS if w["name"] == ward_name)
+        lat, lng = _ward_center(row["row"], row["col"])
         station = PoliceStation(
-            name=f"{w['name'].replace(' Ward', '')} Police Station",
+            name=name,
             code=code,
-            ward_id=wards[w["name"]].id,
+            ward_id=wards[ward_name].id,
+            address=address,
+            location=f"SRID=4326;POINT({lng + dlng} {lat + dlat})",
+            sho_name=sho,
             contact_phone="+91-90000-10000",
             contact_email=f"{code.lower()}@police.demo.city",
         )
         db.add(station)
-        stations[w["name"]] = station
+        stations[code] = station
     db.commit()
-    for name in stations:
-        db.refresh(stations[name])
+    for code in stations:
+        db.refresh(stations[code])
     return stations
 
 
 def seed_emergency_reports(db: Session, wards: dict[str, Ward], stations: dict[str, PoliceStation]) -> None:
     """
-    Shapes the data so the transparency layer actually demonstrates something: one station
-    sitting on unacknowledged reports past the FIR deadline (flagged red), one responding
-    properly, a past-quarter cluster above the k-anonymity threshold so the hotspot map has a
-    visible cell, one below it so suppression is visible too, and a restricted report that must
-    appear on no public surface at all.
+    Shapes the data so both the station section and the public ledger demonstrate something:
+    one station sitting on unacknowledged reports past the FIR deadline (flagged red), one
+    working its cases through FIR, case diary and chargesheet, a Zero FIR registered at the
+    wrong station and transferred, a past-quarter cluster above the k-anonymity threshold and
+    one below it, and a restricted report that appears on no public surface at all.
     """
     if db.execute(select(EmergencyReport)).scalars().first():
         return
@@ -313,38 +338,108 @@ def seed_emergency_reports(db: Session, wards: dict[str, Ward], stations: dict[s
     now = datetime.now(timezone.utc)
     last_quarter = now - timedelta(days=100)
 
-    def add(category, ward_name, created, *, acknowledged=None, fir=None, closed_reason=None, restricted=False):
+    ward_station = {
+        "Lakeview Ward": "PS-01",
+        "Market Ward": "PS-02",
+        "Riverside Ward": "PS-03",
+        "Hillview Ward": "PS-04",
+    }
+
+    def add(category, ward_name, created, *, station_code=None, acknowledged=None, closed_reason=None, restricted=False):
+        station = stations[station_code or ward_station[ward_name]]
         report = EmergencyReport(
             category=category,
             geohash="tdr1x",
             ward_id=wards[ward_name].id,
-            station_id=stations[ward_name].id,
+            station_id=station.id,
             tracking_token=secrets.token_urlsafe(24),
             is_restricted=restricted,
             created_at=created,
             acknowledged_at=acknowledged,
-            fir_number=fir,
-            fir_registered_at=created + timedelta(hours=6) if fir else None,
             closed_without_fir_reason=closed_reason,
             closed_at=created + timedelta(days=2) if closed_reason else None,
         )
         db.add(report)
-        return report
+        db.flush()
+        log_diary(
+            db,
+            station_id=station.id,
+            entry_type=DiaryEntryType.COMPLAINT_RECEIVED,
+            detail=f"Report received ({category.value}), ward {ward_name}",
+            report_id=report.id,
+        )
+        return report, station
+
+    def register_fir(report, station, sections, officer, when, *, is_zero_fir=False, status=FirStatus.UNDER_INVESTIGATION):
+        number, year = next_fir_number(db, station.id, when.year)
+        fir = FirRecord(
+            station_id=station.id,
+            fir_number=number,
+            year=year,
+            report_id=report.id,
+            sections=sections,
+            is_zero_fir=is_zero_fir,
+            registered_by_user_id=officer.id,
+            registered_at=when,
+            investigating_officer_id=officer.id,
+            investigation_deadline=investigation_deadline(report.category, when),
+            status=status,
+        )
+        db.add(fir)
+        db.flush()
+        log_diary(
+            db,
+            station_id=station.id,
+            entry_type=DiaryEntryType.FIR_REGISTERED,
+            detail=f"FIR {number} registered u/s {sections}" + (" - ZERO FIR" if is_zero_fir else ""),
+            officer_user_id=officer.id,
+            report_id=report.id,
+            fir_id=fir.id,
+        )
+        return fir
+
+    market_officer = db.execute(
+        select(User).where(User.email == "sho.market@demo.city")
+    ).scalars().first()
+    riverside_officer = db.execute(
+        select(User).where(User.email == "investigator@demo.city")
+    ).scalars().first()
 
     # Lakeview: sitting on reports. Two are past the 7-day FIR deadline, so it flags red.
     for days in (9, 8, 3):
         add(OffenceCategory.ASSAULT_IN_PROGRESS, "Lakeview Ward", now - timedelta(days=days))
 
-    # Market: acknowledging quickly and registering FIRs.
+    # Market: acknowledging quickly, registering FIRs, one carried through to chargesheet.
     for i, days in enumerate((6, 4, 2)):
         created = now - timedelta(days=days)
-        add(
+        report, station = add(
             OffenceCategory.HOMICIDE_OR_BODY_DISCOVERED if i == 0 else OffenceCategory.ASSAULT_IN_PROGRESS,
             "Market Ward",
             created,
             acknowledged=created + timedelta(hours=1),
-            fir=f"FIR/2026/{100 + i}",
         )
+        fir = register_fir(
+            report,
+            station,
+            "BNS 103" if i == 0 else "BNS 115(2)",
+            market_officer,
+            created + timedelta(hours=6),
+            status=FirStatus.CHARGESHEET_FILED if i == 0 else FirStatus.UNDER_INVESTIGATION,
+        )
+        if i == 0:
+            fir.chargesheet_filed_at = created + timedelta(days=1)
+            fir.court_name = "Chief Judicial Magistrate, Demo City"
+            log_diary(
+                db,
+                station_id=station.id,
+                entry_type=DiaryEntryType.CHARGESHEET_FILED,
+                detail=f"FIR {fir.fir_number}: chargesheet filed before {fir.court_name}",
+                officer_user_id=market_officer.id,
+                fir_id=fir.id,
+            )
+        for note in ("Scene visited, witnesses recorded.", "CCTV from the adjoining shop requisitioned."):
+            db.add(CaseDiaryEntry(fir_id=fir.id, officer_user_id=market_officer.id, detail=note))
+
     closed = now - timedelta(days=5)
     add(
         OffenceCategory.ASSAULT_IN_PROGRESS,
@@ -354,16 +449,51 @@ def seed_emergency_reports(db: Session, wards: dict[str, Ward], stations: dict[s
         closed_reason="Complainant withdrew; no cognizable offence made out",
     )
 
+    # A Zero FIR: reported at Market East, the offence falls under Market, so it is registered
+    # here and the investigation transferred rather than the complainant being turned away.
+    zero_created = now - timedelta(days=3)
+    zero_report, zero_station = add(
+        OffenceCategory.ASSAULT_IN_PROGRESS,
+        "Market Ward",
+        zero_created,
+        station_code="PS-05",
+        acknowledged=zero_created + timedelta(minutes=30),
+    )
+    zero_fir = register_fir(
+        zero_report, zero_station, "BNS 115(2)", market_officer, zero_created + timedelta(hours=1), is_zero_fir=True
+    )
+    zero_fir.transferred_to_station_id = stations["PS-02"].id
+    zero_fir.status = FirStatus.TRANSFERRED
+    zero_report.station_id = stations["PS-02"].id
+    log_diary(
+        db,
+        station_id=zero_station.id,
+        entry_type=DiaryEntryType.ZERO_FIR_TRANSFERRED_OUT,
+        detail=f"FIR {zero_fir.fir_number} transferred to Market Police Station: offence within their jurisdiction",
+        officer_user_id=market_officer.id,
+        fir_id=zero_fir.id,
+        report_id=zero_report.id,
+    )
+    log_diary(
+        db,
+        station_id=stations["PS-02"].id,
+        entry_type=DiaryEntryType.TRANSFERRED_IN,
+        detail=f"FIR {zero_fir.fir_number} received from Market East Police Station",
+        fir_id=zero_fir.id,
+        report_id=zero_report.id,
+    )
+
     # Riverside: a past-quarter narcotics cluster, above the k-anonymity threshold of five.
     for i in range(6):
         created = last_quarter - timedelta(days=i)
-        add(
+        report, station = add(
             OffenceCategory.NARCOTICS,
             "Riverside Ward",
             created,
             acknowledged=created + timedelta(hours=3),
-            fir=f"FIR/2026/{200 + i}" if i < 2 else None,
         )
+        if i < 2:
+            register_fir(report, station, "NDPS 21(b)", riverside_officer, created + timedelta(hours=5))
 
     # Hillview: only three in the same past quarter, so the map must suppress the cell.
     for i in range(3):
@@ -379,7 +509,7 @@ def seed_emergency_reports(db: Session, wards: dict[str, Ward], stations: dict[s
     )
 
     # One report holding sealed evidence, so the investigating-officer flow is demonstrable.
-    with_evidence = add(
+    with_evidence, _ = add(
         OffenceCategory.NARCOTICS,
         "Riverside Ward",
         now - timedelta(days=1),
@@ -400,10 +530,10 @@ def seed_emergency_reports(db: Session, wards: dict[str, Ward], stations: dict[s
     db.commit()
 
 
-def seed_users(db: Session, wards: dict[str, Ward]) -> dict[str, User]:
+def seed_users(db: Session, wards: dict[str, Ward], stations: dict[str, PoliceStation]) -> dict[str, User]:
     users = {}
     ward_ids = list(wards.values())
-    for i, (email, name, role, dept) in enumerate(USERS):
+    for i, (email, name, role, dept, station_code) in enumerate(USERS):
         existing = db.execute(select(User).where(User.email == email)).scalars().first()
         if existing:
             users[email] = existing
@@ -420,6 +550,7 @@ def seed_users(db: Session, wards: dict[str, Ward]) -> dict[str, User]:
             hashed_password=hash_password(DEV_PASSWORD),
             role=role,
             jurisdiction_ward_id=assigned_ward,
+            police_station_id=stations[station_code].id if station_code else None,
         )
         db.add(user)
         users[email] = user
@@ -560,7 +691,14 @@ def main() -> None:
             "Seed data is for local development only."
         )
 
-    Base.metadata.create_all(bind=engine)  # safety net; alembic upgrade head is the real source of truth
+    # Deliberately does NOT create tables. create_all() builds the schema without the things
+    # only migrations add - the append-only triggers on the audit log, chain of custody and
+    # station diaries, and the constraint that stops a restricted report being unrestricted -
+    # so a failed migration would be papered over with a database that merely looks right.
+    with engine.connect() as connection:
+        stamped = connection.execute(text("SELECT count(*) FROM alembic_version")).scalar()
+    if not stamped:
+        raise SystemExit("Database is not migrated. Run: alembic upgrade head")
     db = SessionLocal()
     try:
         ensure_buckets()
@@ -572,15 +710,15 @@ def main() -> None:
         seed_routing_rules(db)
         seed_emergency_routing_rules(db)
         stations = seed_police_stations(db, wards)
-        seed_users(db, wards)
+        seed_users(db, wards, stations)
         seed_emergency_reports(db, wards, stations)
         seed_sample_infra_issues(db, wards, categories)
         seed_sample_violation_cases(db, wards, classes, vehicles)
         seed_sample_corruption_reports(db)
         print("Seed complete.")
         print(f"\nDemo official accounts (password: {DEV_PASSWORD}):")
-        for email, _, role, _ in USERS:
-            print(f"  {email}  [{role.value}]")
+        for email, _, role, _, station_code in USERS:
+            print(f"  {email}  [{role.value}]" + (f" @ {station_code}" if station_code else ""))
 
         # A tracking token is tied to no identity, so there is no way to look one up by anything
         # else. Printing the seeded ones is the only way to demo the citizen tracking page

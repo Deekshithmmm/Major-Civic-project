@@ -17,6 +17,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -387,11 +388,14 @@ def main() -> int:
     inv_h = {"Authorization": f"Bearer {inv_login['access_token']}"}
 
     check(
-        "moderator has no route to Module 4 at all (spec 2.6)",
-        requests.get(f"{BASE}/api/emergency/officer/queue", headers=mod_h, timeout=10).status_code == 403,
+        "moderator has no route to Module 4 evidence at all (spec 2.6)",
+        requests.post(
+            f"{BASE}/api/emergency/officer/reports/{uuid.uuid4()}/evidence",
+            headers=mod_h, json={"case_or_fir_number": "X/1"}, timeout=10,
+        ).status_code == 403,
     )
-    m4_queue = requests.get(f"{BASE}/api/emergency/officer/queue", headers=inv_h, timeout=10)
-    check("investigating officer can see the queue", m4_queue.status_code == 200, str(m4_queue.status_code))
+    m4_queue = requests.get(f"{BASE}/api/station/reports", headers=inv_h, timeout=10)
+    check("investigating officer can see their station's queue", m4_queue.status_code == 200, str(m4_queue.status_code))
 
     with_evidence = next((r for r in m4_queue.json() if r["has_evidence"]), None) if m4_queue.status_code == 200 else None
     if not with_evidence:
@@ -436,6 +440,133 @@ def main() -> int:
     )
     this_quarter = f"{datetime.now(timezone.utc).year} Q{(datetime.now(timezone.utc).month - 1) // 3 + 1}"
     check("hotspot map runs a quarter behind", all(cell["quarter"] != this_quarter for cell in hotspots))
+
+    print("\n== Police station network and internal procedures ==")
+    stations = requests.get(f"{BASE}/api/station/directory", timeout=10).json()
+    check("station directory is public", len(stations) >= 4, str(len(stations)))
+    check("stations are mapped to a location", all(s["lat"] and s["lng"] for s in stations))
+    check(
+        "a ward can hold more than one station",
+        len({s["ward_name"] for s in stations}) < len(stations),
+        f"{len(stations)} stations across {len({s['ward_name'] for s in stations})} wards",
+    )
+
+    near = requests.get(f"{BASE}/api/station/nearest", params={"lat": 12.980, "lng": 77.620}, timeout=10)
+    check("nearest station resolves for a point", near.status_code == 200, str(near.status_code))
+    check(
+        "the nearest station is the one in that ward",
+        near.status_code != 200 or near.json()["ward_name"] == "Market Ward",
+        near.json().get("name", "") if near.status_code == 200 else "",
+    )
+
+    lakeview_h = {
+        "Authorization": "Bearer "
+        + requests.post(
+            f"{BASE}/api/auth/login", json={"email": "sho.lakeview@demo.city", "password": DEV_PASSWORD}, timeout=10
+        ).json()["access_token"]
+    }
+    market_h = {
+        "Authorization": "Bearer "
+        + requests.post(
+            f"{BASE}/api/auth/login", json={"email": "sho.market@demo.city", "password": DEV_PASSWORD}, timeout=10
+        ).json()["access_token"]
+    }
+
+    mine = requests.get(f"{BASE}/api/station/me", headers=lakeview_h, timeout=10)
+    check("an officer is posted to a station", mine.status_code == 200 and mine.json()["code"] == "PS-01", mine.text[:120])
+
+    lk_reports = requests.get(f"{BASE}/api/station/reports", headers=lakeview_h, timeout=10).json()
+    mk_reports = requests.get(f"{BASE}/api/station/reports", headers=market_h, timeout=10).json()
+    check(
+        "a station sees only its own reports",
+        not ({r["id"] for r in lk_reports} & {r["id"] for r in mk_reports}),
+    )
+    check("a moderator cannot reach station procedures",
+          requests.get(f"{BASE}/api/station/reports", headers=mod_h, timeout=10).status_code == 403)
+
+    target = next((r for r in lk_reports if not r["fir_number"] and not r["closed_at"]), None)
+    if not target:
+        skip("station procedure chain", "no workable report at the test station")
+    else:
+        gd_before = len(requests.get(f"{BASE}/api/station/diary", headers=lakeview_h, timeout=10).json())
+
+        ack = requests.post(f"{BASE}/api/station/reports/{target['id']}/acknowledge", headers=lakeview_h, timeout=10)
+        check("duty officer can acknowledge a report", ack.status_code == 200, str(ack.status_code))
+
+        fir = requests.post(
+            f"{BASE}/api/station/reports/{target['id']}/fir",
+            headers=lakeview_h, json={"sections": "BNS 115(2)"}, timeout=10,
+        )
+        check("FIR registers against the report", fir.status_code == 201, fir.text[:150])
+        check(
+            "the FIR number is issued by the station, not typed in",
+            fir.status_code != 201 or re.fullmatch(r"\d{4}/\d{4}", fir.json()["fir_number"]) is not None,
+            fir.json().get("fir_number", "") if fir.status_code == 201 else "",
+        )
+        check(
+            "an investigation deadline is set",
+            fir.status_code != 201 or fir.json()["days_remaining"] > 0,
+        )
+
+        if fir.status_code == 201:
+            fir_id = fir.json()["id"]
+            again = requests.post(
+                f"{BASE}/api/station/reports/{target['id']}/fir",
+                headers=lakeview_h, json={"sections": "BNS 115(2)"}, timeout=10,
+            )
+            check("a second FIR on the same report is refused", again.status_code == 409, str(again.status_code))
+
+            cd = requests.post(
+                f"{BASE}/api/station/firs/{fir_id}/case-diary",
+                headers=lakeview_h, json={"detail": "Scene inspected; statements recorded."}, timeout=10,
+            )
+            check("investigating officer can add a case diary entry", cd.status_code == 201, str(cd.status_code))
+
+            foreign = requests.post(
+                f"{BASE}/api/station/firs/{fir_id}/case-diary",
+                headers=market_h, json={"detail": "another station writing"}, timeout=10,
+            )
+            check("another station cannot write to this FIR", foreign.status_code == 403, str(foreign.status_code))
+
+            cs = requests.post(
+                f"{BASE}/api/station/firs/{fir_id}/chargesheet",
+                headers=lakeview_h, json={"court_name": "CJM Demo City"}, timeout=10,
+            )
+            check("chargesheet can be filed", cs.status_code == 200, cs.text[:120])
+            check(
+                "a concluded FIR cannot be concluded twice",
+                requests.post(
+                    f"{BASE}/api/station/firs/{fir_id}/chargesheet",
+                    headers=lakeview_h, json={"court_name": "CJM Demo City"}, timeout=10,
+                ).status_code == 409,
+            )
+
+        gd_after = requests.get(f"{BASE}/api/station/diary", headers=lakeview_h, timeout=10).json()
+        check(
+            "every procedure wrote a General Diary entry",
+            len(gd_after) >= gd_before + 4,
+            f"{gd_before} -> {len(gd_after)}",
+        )
+        check(
+            "diary entries are numbered per station per day",
+            all(e["serial_no"] > 0 for e in gd_after)
+            and len({(e["entry_date"], e["serial_no"]) for e in gd_after}) == len(gd_after),
+        )
+
+    zero_firs = [
+        f for f in requests.get(f"{BASE}/api/station/firs", headers=market_h, timeout=10).json() if f["is_zero_fir"]
+    ]
+    check("a Zero FIR is registered and transferred, not refused", len(zero_firs) >= 1, str(len(zero_firs)))
+    check(
+        "the transferred Zero FIR still belongs to the station that registered it",
+        not zero_firs or zero_firs[0]["transferred_to_station_id"] is not None,
+    )
+
+    ledger_after = requests.get(f"{BASE}/api/emergency/ledger", timeout=15).json()
+    check(
+        "the public ledger counts FIRs from the station register",
+        any(row["firs_registered"] > 0 for row in ledger_after),
+    )
 
     print("\n== Security controls ==")
     headers = requests.get(f"{BASE}/health", timeout=10).headers
@@ -493,7 +624,7 @@ def main() -> int:
         timeout=60,
     )
     if out_of_area.status_code == 201:
-        all_reports = requests.get(f"{BASE}/api/emergency/officer/queue", headers=inv_h, timeout=10).json()
+        all_reports = requests.get(f"{BASE}/api/station/reports", headers=inv_h, timeout=10).json()
         foreign = [r for r in all_reports if r["has_evidence"]]
         check(
             "an investigating officer's queue only shows their own jurisdiction",

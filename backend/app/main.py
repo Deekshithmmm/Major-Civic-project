@@ -12,6 +12,7 @@ from app.routers import (
     module3_infra,
     module4_emergency,
     public,
+    station,
 )
 from app.security import security_headers_middleware
 from app.services.storage import ensure_buckets
@@ -58,6 +59,7 @@ app.include_router(module3_infra.router)
 app.include_router(module1_violations.router)
 app.include_router(module2_corruption.router)
 app.include_router(module4_emergency.router)
+app.include_router(station.router)
 app.include_router(public.router)
 
 

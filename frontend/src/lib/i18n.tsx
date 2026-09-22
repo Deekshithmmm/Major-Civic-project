@@ -305,6 +305,19 @@ const STRINGS = {
     hi: 'आपका साक्ष्य कभी प्रकाशित नहीं होता। यह सीलबंद कस्टडी श्रृंखला के तहत जाँचकर्ताओं को जाता है।',
     kn: 'ನಿಮ್ಮ ಸಾಕ್ಷ್ಯ ಎಂದಿಗೂ ಪ್ರಕಟವಾಗುವುದಿಲ್ಲ. ಇದು ಮೊಹರು ಮಾಡಿದ ಕಸ್ಟಡಿ ಸರಪಳಿಯಡಿ ತನಿಖಾಧಿಕಾರಿಗಳಿಗೆ ಹೋಗುತ್ತದೆ.',
   },
+  navStations: { en: 'Police stations', hi: 'पुलिस स्टेशन', kn: 'ಪೊಲೀಸ್ ಠಾಣೆಗಳು' },
+  stationsTitle: { en: 'Police stations', hi: 'पुलिस स्टेशन', kn: 'ಪೊಲೀಸ್ ಠಾಣೆಗಳು' },
+  stationsIntro: {
+    en: 'Every station in the network, where it is and how to reach it. A report goes to the nearest station, which is not always the one your ward is named after.',
+    hi: 'नेटवर्क का हर स्टेशन, वह कहाँ है और उससे कैसे संपर्क करें। शिकायत निकटतम स्टेशन को जाती है, जो हमेशा आपके वार्ड के नाम वाला स्टेशन नहीं होता।',
+    kn: 'ನೆಟ್‌ವರ್ಕ್‌ನ ಪ್ರತಿ ಠಾಣೆ, ಅದು ಎಲ್ಲಿದೆ ಮತ್ತು ಹೇಗೆ ಸಂಪರ್ಕಿಸುವುದು. ದೂರು ಹತ್ತಿರದ ಠಾಣೆಗೆ ಹೋಗುತ್ತದೆ, ಅದು ಯಾವಾಗಲೂ ನಿಮ್ಮ ವಾರ್ಡ್‌ನ ಹೆಸರಿನ ಠಾಣೆ ಆಗಿರುವುದಿಲ್ಲ.',
+  },
+  stationsPickHelp: {
+    en: 'Tap anywhere on the map to see which station covers that spot.',
+    hi: 'यह देखने के लिए कि उस स्थान को कौन सा स्टेशन कवर करता है, मानचित्र पर कहीं भी टैप करें।',
+    kn: 'ಆ ಸ್ಥಳವನ್ನು ಯಾವ ಠಾಣೆ ಒಳಗೊಂಡಿದೆ ಎಂದು ನೋಡಲು ನಕ್ಷೆಯಲ್ಲಿ ಎಲ್ಲಿಯಾದರೂ ಟ್ಯಾಪ್ ಮಾಡಿ.',
+  },
+  stationsNearest: { en: 'Station covering that point', hi: 'उस स्थान को कवर करने वाला स्टेशन', kn: 'ಆ ಸ್ಥಳವನ್ನು ಒಳಗೊಂಡ ಠಾಣೆ' },
   navTransparency: { en: 'Accountability', hi: 'जवाबदेही', kn: 'ಹೊಣೆಗಾರಿಕೆ' },
 
   violSubmitted: {

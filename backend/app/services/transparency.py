@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.models.jurisdiction import Ward
 from app.models.module4_emergency import EmergencyReport, OffenceCategory, PoliceStation
+from app.models.station import FirRecord
 
 # Never public, at any stage, in any form - including counts (spec 2.5).
 PUBLIC_CATEGORIES = [
@@ -85,7 +86,11 @@ def station_ledger(db: Session) -> list[StationLedgerRow]:
             r for r in reports
             if r.acknowledged_at is None and r.created_at < now - timedelta(hours=ACK_SLA_HOURS)
         ]
-        firs = [r for r in reports if r.fir_number]
+        # An FIR counts when the station actually registered one in its register.
+        fir_report_ids = set(
+            db.execute(select(FirRecord.report_id).where(FirRecord.station_id == station.id)).scalars().all()
+        )
+        firs = [r for r in reports if r.id in fir_report_ids]
         ack_hours = [
             (r.acknowledged_at - r.created_at).total_seconds() / 3600
             for r in reports
@@ -93,9 +98,9 @@ def station_ledger(db: Session) -> list[StationLedgerRow]:
         ]
         open_past_fir_sla = [
             r for r in reports
-            if not r.fir_number and r.closed_at is None and r.created_at < now - timedelta(days=FIR_SLA_DAYS)
+            if r.id not in fir_report_ids and r.closed_at is None and r.created_at < now - timedelta(days=FIR_SLA_DAYS)
         ]
-        closed_without_fir = [r for r in reports if r.closed_at and not r.fir_number]
+        closed_without_fir = [r for r in reports if r.closed_at and r.id not in fir_report_ids]
 
         rows.append(
             StationLedgerRow(
@@ -144,6 +149,7 @@ def hotspot_map(db: Session) -> list[HotspotCell]:
     reports = db.execute(
         select(EmergencyReport).where(EmergencyReport.category.in_(PUBLIC_CATEGORIES))
     ).scalars().all()
+    fir_report_ids = set(db.execute(select(FirRecord.report_id)).scalars().all())
 
     buckets: dict[tuple[str, str, str], list[EmergencyReport]] = {}
     for report in reports:
@@ -163,7 +169,7 @@ def hotspot_map(db: Session) -> list[HotspotCell]:
             quarter=quarter,
             category=category,
             report_count=len(group),
-            firs_registered=len([r for r in group if r.fir_number]),
+            firs_registered=len([r for r in group if r.id in fir_report_ids]),
         )
         for (ward, quarter, category), group in buckets.items()
         if len(group) >= K_ANONYMITY_THRESHOLD

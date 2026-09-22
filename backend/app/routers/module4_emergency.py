@@ -28,19 +28,17 @@ from app.models.module4_emergency import (
     OffenceCategory,
     PoliceStation,
 )
+from app.models.station import FirRecord
 from app.models.users import User, UserRole
 from app.schemas.module4_emergency import (
     ChainOfCustodyItem,
-    CloseRequest,
     EmergencyRoutingRuleResponse,
     EvidenceAccessRequest,
     EvidenceAccessResponse,
-    FirRequest,
     HotspotCellResponse,
     ReportCreateResponse,
     ReportStatusResponse,
     StationLedgerResponse,
-    StationReportResponse,
     SupportResource,
 )
 from app.security import max_bytes_for, rate_limit, read_upload
@@ -210,9 +208,10 @@ def track_report(tracking_token: str, db: Session = Depends(get_db)):
     if not report:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No report found for that token")
 
+    fir = db.execute(select(FirRecord).where(FirRecord.report_id == report.id)).scalars().first()
     if report.closed_at:
         state = "closed"
-    elif report.fir_number:
+    elif fir:
         state = "fir_registered"
     elif report.acknowledged_at:
         state = "acknowledged"
@@ -224,28 +223,12 @@ def track_report(tracking_token: str, db: Session = Depends(get_db)):
         category=report.category,
         status=state,
         acknowledged_at=report.acknowledged_at,
-        fir_number=report.fir_number,
+        fir_number=fir.fir_number if fir else None,
         created_at=report.created_at,
     )
 
 
 # --- Investigating officer -------------------------------------------------
-
-
-def _station_report(report: EmergencyReport) -> StationReportResponse:
-    return StationReportResponse(
-        id=report.id,
-        category=report.category,
-        geohash=report.geohash,
-        is_restricted=report.is_restricted,
-        has_evidence=report.media_id is not None,
-        acknowledged_at=report.acknowledged_at,
-        fir_number=report.fir_number,
-        fir_registered_at=report.fir_registered_at,
-        closed_at=report.closed_at,
-        closed_without_fir_reason=report.closed_without_fir_reason,
-        created_at=report.created_at,
-    )
 
 
 def _require_jurisdiction(user: User, report: EmergencyReport) -> None:
@@ -261,91 +244,6 @@ def _require_jurisdiction(user: User, report: EmergencyReport) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="This report is outside your jurisdiction.",
         )
-
-
-@router.get("/officer/queue", response_model=list[StationReportResponse])
-def officer_queue(user: User = Depends(investigating_officer), db: Session = Depends(get_db)):
-    stmt = select(EmergencyReport).order_by(EmergencyReport.created_at.desc())
-    if user.role != UserRole.ADMIN and user.jurisdiction_ward_id is not None:
-        stmt = stmt.where(EmergencyReport.ward_id == user.jurisdiction_ward_id)
-    reports = db.execute(stmt).scalars().all()
-    return [_station_report(r) for r in reports]
-
-
-@router.post("/officer/reports/{report_id}/acknowledge", response_model=StationReportResponse)
-def acknowledge(report_id: uuid.UUID, user: User = Depends(investigating_officer), db: Session = Depends(get_db)):
-    report = db.get(EmergencyReport, report_id)
-    if not report:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    if report.acknowledged_at is None:
-        report.acknowledged_at = datetime.now(timezone.utc)
-    db.add(
-        AuditLogEntry(
-            actor_user_id=user.id,
-            action=AuditAction.STATUS_CHANGE,
-            entity_type="emergency_report",
-            entity_id=str(report.id),
-            detail="acknowledged",
-        )
-    )
-    db.commit()
-    db.refresh(report)
-    return _station_report(report)
-
-
-@router.post("/officer/reports/{report_id}/fir", response_model=StationReportResponse)
-def register_fir(
-    report_id: uuid.UUID,
-    payload: FirRequest,
-    user: User = Depends(investigating_officer),
-    db: Session = Depends(get_db),
-):
-    report = db.get(EmergencyReport, report_id)
-    if not report:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    report.fir_number = payload.fir_number
-    report.fir_registered_at = datetime.now(timezone.utc)
-    if report.acknowledged_at is None:
-        report.acknowledged_at = report.fir_registered_at
-    db.add(
-        AuditLogEntry(
-            actor_user_id=user.id,
-            action=AuditAction.STATUS_CHANGE,
-            entity_type="emergency_report",
-            entity_id=str(report.id),
-            detail=f"FIR {payload.fir_number}",
-        )
-    )
-    db.commit()
-    db.refresh(report)
-    return _station_report(report)
-
-
-@router.post("/officer/reports/{report_id}/close", response_model=StationReportResponse)
-def close_without_fir(
-    report_id: uuid.UUID,
-    payload: CloseRequest,
-    user: User = Depends(investigating_officer),
-    db: Session = Depends(get_db),
-):
-    """Closure is legitimate; unexplained closure is not - so a reason is required and published."""
-    report = db.get(EmergencyReport, report_id)
-    if not report:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Report not found")
-    report.closed_at = datetime.now(timezone.utc)
-    report.closed_without_fir_reason = payload.reason
-    db.add(
-        AuditLogEntry(
-            actor_user_id=user.id,
-            action=AuditAction.DISMISS,
-            entity_type="emergency_report",
-            entity_id=str(report.id),
-            detail=payload.reason,
-        )
-    )
-    db.commit()
-    db.refresh(report)
-    return _station_report(report)
 
 
 @router.post("/officer/reports/{report_id}/evidence", response_model=EvidenceAccessResponse)

@@ -26,6 +26,7 @@ import enum
 import uuid
 from datetime import datetime
 
+from geoalchemy2 import Geometry
 from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -65,8 +66,11 @@ class EmergencyReportRoutingRule(Base):
 
 class PoliceStation(Base):
     """
-    Jurisdictional station for a ward, and the unit the response ledger is published against.
-    Work-contact data only, no personal data. Seeded synthetically.
+    A station in the network: where it is, which ward it covers, and the unit the public response
+    ledger is published against. Work-contact data only, no personal data. Seeded synthetically.
+
+    A ward may hold more than one station, so routing picks the nearest one to the incident
+    rather than assuming ward implies station (see services/station.py).
     """
 
     __tablename__ = "police_stations"
@@ -75,6 +79,14 @@ class PoliceStation(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     ward_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    address: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Where the station building is, so a citizen can be shown the nearest one and a report can
+    # be routed by distance rather than by ward alone.
+    location: Mapped[str | None] = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=True)
+    sho_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
     contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     contact_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
@@ -117,8 +129,8 @@ class EmergencyReport(Base):
     # The response ledger is computed from these timestamps, so inaction is visible without
     # anyone deciding to report it (spec 2.5, "Station response ledger").
     acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    fir_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    fir_registered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Whether an FIR exists is answered by models/station.py's FirRecord, which is the station's
+    # own register - not by a field here that someone could set without registering anything.
     closed_without_fir_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

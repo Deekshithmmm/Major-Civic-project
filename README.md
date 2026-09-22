@@ -17,7 +17,40 @@ All four modules are implemented, each with a citizen-facing flow and an officer
 | Module 3 — Civic infrastructure reporting | Built end to end |
 | Module 1 — Violation detection & enforcement assist | Built end to end, **except the CV pipeline**: there is no YOLOv8 detection and no ANPR/OCR, so cases arrive from citizen uploads or seed data and ANPR-path cases have no plate resolved until an officer supplies one. Officer review, challan issuance off a config-driven fine ladder, disputes and second-officer appeals all work. |
 | Module 2 — Anonymous corruption reporting | Built end to end: anonymous upload with browser-side coarse geohashing, routing-rules table, pre-publication moderation, public feed with status badges, tracking tokens. **Not built:** uploader-driven extra blur regions, audio muting, device-level rate limiting, takedown/right-of-reply, Grievance Officer workflow. |
+| Police station section | Built: station network with locations and nearest-station routing, General Diary, FIR register with station-issued numbers, Zero FIR transfer, case diary, chargesheet and closure — see below. |
 | Module 4 — Emergency reporting & evidence custody | Built: triage screen that leads with a 112 call, hard stop for any offence involving a minor, sealed evidence vault with chain of custody, case-number-gated investigating-officer access, and the public transparency layer (station response ledger + aggregate hotspot map). **Not built:** storage-policy-level separation at the bucket layer, per-report encryption keys, auto-purge on a retention schedule, and the irreversible video blur that restricted categories would need (video is refused there instead). |
+
+### The police station section
+
+Module 4 routes a report to a station; this is what the station then does with it. The chain
+mirrors a real station's, because the public response ledger only means anything if the record it
+measures is the one the station actually keeps.
+
+    report routed to the nearest station
+        -> General Diary entry on arrival
+        -> acknowledged by the duty officer
+        -> FIR registered (BNSS s.173), or closed with a stated reason
+        -> investigating officer assigned
+        -> case diary entries as the investigation runs (BNSS s.192)
+        -> chargesheet filed, or a closure report
+
+- **Six stations across four wards**, each mapped to a location. Two wards hold two stations, so
+  a report routes to the **nearest** station rather than assuming one ward means one station. The
+  public directory at `/stations` answers "which station covers this spot" the same way.
+- **The General Diary** (Roznamcha, Police Act s.44) is written by every procedure, in the same
+  transaction as the action itself, numbered per station per day. A station cannot act here
+  without it appearing in its diary.
+- **FIR numbers are issued by the station in sequence** (`0042/2026`), never typed in, so the
+  register cannot be back-dated or have gaps inserted.
+- **Zero FIR** is a procedure, not a refusal: a station registers even when the offence is outside
+  its jurisdiction and transfers the investigation. The registration stays where it was made.
+- **The General Diary and case diary are append-only at the database level** — UPDATE, DELETE and
+  TRUNCATE are all rejected, the way a bound register behaves.
+- **An officer is posted to a station** and sees only that station's reports, FIRs and diary. The
+  one exception is a transferred Zero FIR, which both the registering and receiving stations can
+  work.
+- **The public ledger counts FIRs from this register**, so "FIRs registered" means the station
+  actually registered one — not that a field was filled in somewhere.
 
 ### If you touch Module 4
 
@@ -97,7 +130,11 @@ talking to a different Postgres.
 
 All synthetic, password `DevPassword123!`: `admin@demo.city`, `officer.roads@demo.city`
 (municipal officer), `engineer.sanitation@demo.city`, `moderator@demo.city`,
-`vigilance@demo.city`, `investigator@demo.city`.
+`vigilance@demo.city`, `investigator@demo.city` (posted to Riverside station).
+
+Station staff, for the police station section: `sho.lakeview@demo.city`, `sho.market@demo.city`
+and `io.riverside@demo.city` — each posted to a different station, so logging in as two of them
+shows the scoping.
 
 ### Smoke test / demo script
 
@@ -107,21 +144,22 @@ With the stack running and freshly seeded:
 cd backend && python -m tests.smoke_test
 ```
 
-90 checks covering the guarantees that actually matter, across all four modules: EXIF
+112 checks covering the guarantees that actually matter, across all four modules: EXIF
 stripping verified on the stored photo, GPS/device tags and audio verified gone from the stored
 video, 50m duplicate clustering, proof-gated resolution, SLA breach + shareable card,
 officer-confirmed challans with the fine ladder read from config, appeal separation of duties,
 the police-personnel routing rule that must never notify local police, a corruption report that
 stays off the feed until moderated, the hard stop on any offence involving a minor, evidence
-refused without a case number and served only from the vault bucket, and a hotspot map that
-suppresses cells below five and never carries a restricted category.
+refused without a case number and served only from the vault bucket, a hotspot map that
+suppresses cells below five and never carries a restricted category, and the station procedure
+chain from acknowledgement through FIR to chargesheet with a General Diary line for each step.
 
 Role separation is asserted in both directions: a moderator is refused Module 1 identity data
 and every Module 4 route, and a municipal officer is refused Module 2 reports.
 
 It's safe to re-run without resetting — it picks a fresh map location each time so it never
 collides with its own earlier data, and skips the challan flow if a previous run already
-confirmed the one seeded ANPR case (86 passed / 1 skipped instead of 90). For the full set,
+confirmed the one seeded ANPR case (108 passed / 1 skipped instead of 112). For the full set,
 reset first:
 
 ```bash
@@ -139,7 +177,8 @@ backend/app/
   routers/      FastAPI routers
   services/     jurisdiction resolution (PostGIS), media pipeline (metadata strip, photo
                 face blur, thumbnailing), storage (S3/MinIO), evidence vault (Module 4,
-                separate bucket), transparency (ledger + k-anonymous hotspots), SLA
+                separate bucket), station (nearest-station routing, General Diary,
+                FIR numbering), transparency (ledger + k-anonymous hotspots), SLA
                 timers, tracking codes, notifications, auth
   seed/         synthetic seed data generator
 frontend/src/

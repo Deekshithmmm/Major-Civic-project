@@ -15,7 +15,9 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 @router.post(
     "/login",
     response_model=TokenResponse,
-    dependencies=[Depends(rate_limit("login", limit=10, window_seconds=600))],
+    # Generous enough that a station or office behind one IP can get its whole shift logged in,
+    # tight enough that brute force - which needs thousands of attempts - dies here.
+    dependencies=[Depends(rate_limit("login", limit=30, window_seconds=600))],
 )
 def login(payload: LoginRequest, db: Session = Depends(get_db)):
     user = db.execute(select(User).where(User.email == payload.email)).scalars().first()
