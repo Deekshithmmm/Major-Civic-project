@@ -1,0 +1,354 @@
+/*
+ * Theme for the project's database browser, matching the application's own interface: Inter,
+ * the civic teal palette from frontend/tailwind.config.js, and the same card treatment.
+ *
+ * It is not only paint. Adminer's default layout is dense enough that reading a 17-column table
+ * like fir_records means losing the header off the top of the screen and guessing which column
+ * you are in. The changes that matter for that are the sticky table header, the row hover, the
+ * zebra striping and the larger hit targets on links and buttons.
+ *
+ * Mounted read-only at /var/www/html/adminer.css by docker-compose. Adminer picks up a file of
+ * that name automatically, so there is nothing to configure.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --civic-50:  #eef6f5;
+  --civic-100: #d6eae7;
+  --civic-200: #aed6d0;
+  --civic-300: #7bbab1;
+  --civic-500: #2b7d72;
+  --civic-600: #166058;
+  --civic-700: #114a44;
+  --ink:       #0f2e2b;
+
+  --page:      #f8fafc;
+  --surface:   #ffffff;
+  --border:    #e2e8f0;
+  --text:      #1e293b;
+  --muted:     #64748b;
+
+  --radius:     10px;
+  --radius-lg:  14px;
+  --shadow-card: 0 1px 2px rgba(15, 46, 43, .06), 0 1px 3px rgba(15, 46, 43, .04);
+  --shadow-lift: 0 4px 12px rgba(15, 46, 43, .10);
+}
+
+/* ---------------------------------------------------------------- page ---- */
+
+body.adminer {
+  font-family: Inter, ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--page);
+  /* A faint tint behind the page, so panels read as raised rather than as the page itself. */
+  background-image: radial-gradient(60rem 30rem at 50% -12rem, rgba(22, 96, 88, .07), transparent);
+  background-repeat: no-repeat;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { color: var(--ink); font-weight: 600; letter-spacing: -0.01em; }
+h2 { font-size: 20px; margin: 0 0 16px; }
+h3 { font-size: 16px; margin: 24px 0 8px; }
+
+a, a:visited { color: var(--civic-600); text-decoration-color: var(--civic-200); text-underline-offset: 2px; }
+a:hover { color: var(--civic-700); text-decoration-color: currentColor; }
+
+/* WCAG AA: a visible, high-contrast focus ring on everything interactive. */
+:focus-visible {
+  outline: 2px solid var(--civic-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* -------------------------------------------------------------- layout ---- */
+
+#content {
+  margin: 0 0 0 250px;
+  padding: 24px 28px 64px;
+  max-width: none;
+}
+
+/* Adminer 5 nests #menu inside #foot. The wrapper carries no styling of its own here; the menu
+   is positioned directly. (Adminer 4's #breadcrumb no longer exists, so nothing targets it.) */
+#foot { background: transparent; border: 0; margin: 0; padding: 0; }
+
+/* ---------------------------------------------------------------- menu ---- */
+
+#menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 250px;
+  margin: 0;
+  padding: 0 0 24px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  box-shadow: var(--shadow-card);
+}
+
+#menu h1 {
+  margin: 0;
+  padding: 18px 20px;
+  background: var(--civic-600);
+  border: 0;
+  font-size: 15px;
+  line-height: 1.3;
+}
+#menu h1 a, #menu h1 a:visited { color: #fff; text-decoration: none; font-weight: 600; }
+#menu h1 .version { color: var(--civic-200); font-weight: 400; font-size: 12px; }
+
+#menu p, #menu > div { padding: 12px 20px; margin: 0; border-bottom: 1px solid var(--border); }
+#menu p.links { display: flex; flex-wrap: wrap; gap: 6px; }
+#menu p.links a {
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: var(--civic-50);
+  color: var(--civic-700);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 13px;
+}
+#menu p.links a:hover { background: var(--civic-100); }
+#menu p.links a.active { background: var(--civic-600); color: #fff; }
+
+#tables { padding: 8px 10px; border: 0; }
+#tables a, #tables a:visited {
+  display: block;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text);
+  font-size: 13px;
+}
+#tables a:hover { background: var(--civic-50); color: var(--civic-700); }
+#tables a.active, #tables .active a { background: var(--civic-600); color: #fff; font-weight: 500; }
+/* Adminer prints the row-count link separately; keep it quiet so the name reads first. */
+#tables .structure, #tables .view { color: var(--muted); font-size: 12px; }
+
+#logout { border-radius: var(--radius); }
+
+/* -------------------------------------------------------------- tables ---- */
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  margin: 12px 0 20px;
+}
+
+td, th {
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  padding: 9px 14px;
+  vertical-align: top;
+}
+
+thead th, thead td {
+  /* Sticky, because the whole point of a header on fir_records (17 columns) is to still be
+     there when you have scrolled far enough to need it. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f1f5f9;
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border-bottom: 1px solid #cbd5e1;
+}
+thead th a, thead th a:visited { color: var(--ink); }
+
+tbody tr:last-child td, tbody tr:last-child th { border-bottom: 0; }
+tbody tr:nth-child(even) td { background: #fbfdfd; }
+tbody tr:hover td { background: var(--civic-50); }
+
+/* Adminer's own alternating/checked classes. */
+table tr.odd td, table tr.odd th { background: #fbfdfd; }
+table tr.checked td, table tr.checked th { background: var(--civic-100); }
+
+/* The layout tables Adminer uses for forms are not data - strip the chrome back off them. */
+table.layout, table.layout td, table.layout th {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  padding: 5px 8px 5px 0;
+}
+table.layout { box-shadow: none; }
+table.layout th { text-transform: none; letter-spacing: 0; font-size: 14px; position: static; background: transparent; }
+
+/* Values read better in a monospaced face: UUIDs, hashes, geometry, timestamps. */
+td code, td .number, pre { font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace; }
+td .number, .number { text-align: right; font-variant-numeric: tabular-nums; }
+td i, .null { color: var(--muted); font-style: italic; }
+
+/* --------------------------------------------------------------- forms ---- */
+
+input, select, textarea {
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius);
+  padding: 7px 10px;
+  transition: border-color .15s, box-shadow .15s;
+}
+input:hover, select:hover, textarea:hover { border-color: #94a3b8; }
+input:focus, select:focus, textarea:focus {
+  border-color: var(--civic-600);
+  box-shadow: 0 0 0 3px rgba(22, 96, 88, .12);
+  outline: none;
+}
+input[type=checkbox], input[type=radio] { accent-color: var(--civic-600); width: auto; padding: 0; }
+
+input[type=submit], input[type=button], button, .button {
+  background: var(--civic-600);
+  color: #fff;
+  border: 0;
+  border-radius: var(--radius);
+  padding: 8px 16px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: var(--shadow-card);
+  transition: background .15s, box-shadow .15s, transform .05s;
+}
+input[type=submit]:hover, button:hover, .button:hover { background: var(--civic-700); box-shadow: var(--shadow-lift); }
+input[type=submit]:active, button:active { transform: translateY(1px); }
+input[type=submit][disabled], button[disabled] { opacity: .5; cursor: not-allowed; box-shadow: none; }
+
+/* Adminer marks destructive submits with this. Make them look destructive. */
+input.delete, input[value='Drop'], input[value='Truncate'] { background: #b91c1c; }
+input.delete:hover, input[value='Drop']:hover, input[value='Truncate']:hover { background: #991b1b; }
+
+fieldset {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  padding: 12px 16px;
+  margin: 12px 0;
+  box-shadow: var(--shadow-card);
+}
+fieldset legend { color: var(--ink); font-weight: 600; padding: 0 6px; }
+
+/* ------------------------------------------------------------ messages ---- */
+
+.error, .message, .warning {
+  border: 1px solid;
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin: 12px 0;
+  box-shadow: none;
+}
+.error   { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.message { background: #ecfdf5; border-color: #a7f3d0; color: #065f46; }
+.warning { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+
+/* --------------------------------------------------------------- login ---- */
+
+/*
+ * The login page.
+ *
+ * Adminer renders #menu on the login screen as well - it holds the language picker and the
+ * version - so the presence of a menu does not distinguish the two states. The password field
+ * does, and testing for it positively is both accurate and obvious to read.
+ */
+body.adminer:has(input[name="auth[password]"]) #content {
+  margin: 7vh auto 0;
+  max-width: 460px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lift);
+  padding: 32px;
+}
+body.adminer:has(input[name="auth[password]"]) h2 { text-align: center; font-size: 22px; }
+body.adminer:has(input[name="auth[password]"]) table.layout { width: 100%; }
+body.adminer:has(input[name="auth[password]"]) table.layout td { width: 100%; }
+body.adminer:has(input[name="auth[password]"]) input:not([type=checkbox]):not([type=submit]),
+body.adminer:has(input[name="auth[password]"]) select { width: 100%; }
+body.adminer:has(input[name="auth[password]"]) input[type=submit] {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+}
+
+/* On that page the menu is not a navigation sidebar, just the language picker and version, so
+   it drops out of the fixed column and sits under the card as a quiet strip. */
+body.adminer:has(input[name="auth[password]"]) #menu {
+  position: static;
+  width: auto;
+  max-width: 460px;
+  margin: 16px auto 40px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+body.adminer:has(input[name="auth[password]"]) #menu h1 {
+  background: transparent;
+  text-align: center;
+  padding: 0 0 6px;
+}
+body.adminer:has(input[name="auth[password]"]) #menu h1 a,
+body.adminer:has(input[name="auth[password]"]) #menu h1 a:visited { color: var(--muted); font-weight: 500; }
+body.adminer:has(input[name="auth[password]"]) #menu h1 .version { color: var(--muted); }
+body.adminer:has(input[name="auth[password]"]) #menu p,
+body.adminer:has(input[name="auth[password]"]) #menu > div,
+body.adminer:has(input[name="auth[password]"]) #menu form > div { border: 0; text-align: center; }
+
+/* --------------------------------------------------------------- misc ---- */
+
+#lang { position: static; padding: 12px 20px; font-size: 12px; }
+#version { color: var(--muted); font-size: 12px; }
+.jush { font-family: 'JetBrains Mono', ui-monospace, Consolas, monospace; }
+
+/* Narrow screens: the fixed sidebar has to stop being fixed. */
+@media (max-width: 880px) {
+  #menu { position: static; width: auto; height: auto; border-right: 0; border-bottom: 1px solid var(--border); }
+  #content, #breadcrumb { margin-left: 0; padding-left: 16px; padding-right: 16px; }
+}
+
+/* Respect a reader who has asked the system for less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: .01ms !important;
+    animation-duration: .01ms !important;
+  }
+}
+
+/* ----------------------------------------------------------- dark mode ---- */
+
+/* Adminer ships its own dark.css under prefers-color-scheme. Re-point its surfaces at this
+   palette so the two do not disagree and leave grey-on-grey panels. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page:    #0b1a19;
+    --surface: #102523;
+    --border:  #1f3f3b;
+    --text:    #dceae8;
+    --muted:   #8aa8a3;
+    --ink:     #eaf5f3;
+  }
+  body.adminer { background-image: radial-gradient(60rem 30rem at 50% -12rem, rgba(43, 125, 114, .16), transparent); }
+  thead th, thead td { background: #163430; color: var(--ink); border-bottom-color: #24514c; }
+  tbody tr:nth-child(even) td, table tr.odd td, table tr.odd th { background: #122a28; }
+  tbody tr:hover td { background: #163632; }
+  table tr.checked td, table tr.checked th { background: #1b423d; }
+  input, select, textarea { background: #0e201f; border-color: #26504b; color: var(--text); }
+  #menu p.links a { background: #15302d; color: var(--civic-200); }
+  #menu p.links a:hover { background: #1b3d39; }
+  #tables a, #tables a:visited { color: var(--text); }
+  #tables a:hover { background: #163430; color: var(--civic-200); }
+  .error   { background: #2a1416; border-color: #5b2226; color: #fecaca; }
+  .message { background: #0e2a20; border-color: #1f5e44; color: #a7f3d0; }
+  .warning { background: #2b2210; border-color: #5e4a1f; color: #fde68a; }
+}

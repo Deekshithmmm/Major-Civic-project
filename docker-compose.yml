@@ -67,6 +67,11 @@ services:
     environment:
       # Pre-fills the server field, so the only thing to type is the username and password.
       ADMINER_DEFAULT_SERVER: db
+    volumes:
+      # Adminer loads a file of this name automatically. It restyles the console to match the
+      # application's own interface and, more usefully, makes a wide table readable: the header
+      # row sticks, rows stripe and highlight on hover, and the hit targets grow.
+      - ./docker/adminer/adminer.css:/var/www/html/adminer.css:ro
     depends_on:
       db:
         condition: service_healthy

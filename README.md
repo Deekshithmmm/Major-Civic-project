@@ -177,6 +177,12 @@ Logging in as `civic` is the more interesting of the two. It is the account the 
 actually uses, so whatever it cannot do in Adminer is precisely what an attacker holding the
 application's credentials could not do either.
 
+The console is themed to match the application — same Inter typeface and civic palette — by
+`docker/adminer/adminer.css`, which Adminer picks up automatically. Beyond appearance it makes
+wide tables readable: the header row sticks while you scroll, rows stripe and highlight under the
+cursor, and values sit in a monospaced face so a UUID or a `POINT(...)` can be compared at a
+glance. It follows the system's dark mode.
+
 Adminer is a full database administration console with no access control of its own beyond the
 MySQL login. It is fine on a laptop and must never be started anywhere reachable from a network
 you do not control.
