@@ -23,12 +23,11 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from geoalchemy2.shape import to_shape
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import require_roles
-from app.database import get_db
+from app.database import get_db, parse_point
 from app.models.audit import AuditAction, AuditLogEntry
 from app.models.jurisdiction import Ward
 from app.models.module4_emergency import EmergencyReport, PoliceStation
@@ -65,14 +64,14 @@ station_officer = require_roles(UserRole.INVESTIGATING_OFFICER, UserRole.ADMIN)
 
 
 def _directory_entry(db: Session, station: PoliceStation, wards: dict, lat=None, lng=None) -> StationDirectoryEntry:
-    point = to_shape(station.location) if station.location is not None else None
+    point = parse_point(station.location)
     return StationDirectoryEntry(
         id=station.id,
         name=station.name,
         code=station.code,
         address=station.address,
-        lat=point.y if point else None,
-        lng=point.x if point else None,
+        lat=point[0] if point else None,
+        lng=point[1] if point else None,
         contact_phone=station.contact_phone,
         sho_name=station.sho_name,
         ward_name=wards.get(station.ward_id),

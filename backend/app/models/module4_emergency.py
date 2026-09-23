@@ -26,13 +26,11 @@ import enum
 import uuid
 from datetime import datetime
 
-from geoalchemy2 import Geometry
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Enum, ForeignKey, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.database import Base
+from app.database import Base, Geometry, UTCDateTime
 
 
 class OffenceCategory(str, enum.Enum):
@@ -55,7 +53,7 @@ class EmergencyReportRoutingRule(Base):
 
     __tablename__ = "emergency_routing_rules"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     category: Mapped[OffenceCategory] = mapped_column(
         Enum(OffenceCategory, name="offence_category"), unique=True, nullable=False
     )
@@ -75,10 +73,10 @@ class PoliceStation(Base):
 
     __tablename__ = "police_stations"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    ward_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    ward_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
     address: Mapped[str | None] = mapped_column(String(500), nullable=True)
     # Where the station building is, so a citizen can be shown the nearest one and a report can
@@ -108,7 +106,7 @@ class EmergencyReport(Base):
 
     __tablename__ = "emergency_reports"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     category: Mapped[OffenceCategory] = mapped_column(
         Enum(OffenceCategory, name="emergency_report_category"), nullable=False
     )
@@ -118,9 +116,9 @@ class EmergencyReport(Base):
     media_id: Mapped[str | None] = mapped_column(String(255), nullable=True)  # key in the EVIDENCE VAULT bucket
 
     geohash: Mapped[str] = mapped_column(String(20), nullable=False)
-    ward_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    ward_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     station_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("police_stations.id"), nullable=True
+        Uuid(as_uuid=True), ForeignKey("police_stations.id"), nullable=True
     )
 
     tracking_token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
@@ -128,13 +126,13 @@ class EmergencyReport(Base):
 
     # The response ledger is computed from these timestamps, so inaction is visible without
     # anyone deciding to report it (spec 2.5, "Station response ledger").
-    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     # Whether an FIR exists is answered by models/station.py's FirRecord, which is the station's
     # own register - not by a field here that someone could set without registering anything.
     closed_without_fir_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
 
 
 class ChainOfCustodyEntry(Base):
@@ -150,12 +148,12 @@ class ChainOfCustodyEntry(Base):
 
     __tablename__ = "chain_of_custody_entries"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     report_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("emergency_reports.id"), nullable=False, index=True
+        Uuid(as_uuid=True), ForeignKey("emergency_reports.id"), nullable=False, index=True
     )
     action: Mapped[str] = mapped_column(String(50), nullable=False)  # "sealed" | "viewed"
     detail: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    officer_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    officer_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     case_or_fir_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    accessed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    accessed_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())

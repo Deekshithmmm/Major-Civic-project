@@ -1,11 +1,10 @@
 from logging.config import fileConfig
 
 from alembic import context
-from geoalchemy2 import alembic_helpers
 from sqlalchemy import engine_from_config, pool
 
 from app.config import get_settings
-from app.database import Base
+from app.database import Base, Geometry, UTCDateTime
 from app import models  # noqa: F401  (ensures all model modules register on Base.metadata)
 
 config = context.config
@@ -13,40 +12,57 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+
+# Migrations run as the schema owner, not as the application account. The application account
+# deliberately holds no DDL privileges at all - that is what stops it truncating the audit log
+# (see app/db/harden.py), and it means it could not run a migration even if asked to.
+config.set_main_option("sqlalchemy.url", settings.migration_database_url)
 
 target_metadata = Base.metadata
 
-# PostGIS installs its own tables (spatial_ref_sys) and, in the postgis/postgis image, the
-# tiger geocoder and topology schemas. Without this filter, autogenerate treats every one of
-# them as a table we deleted and emits DROP statements that would break the extension.
-POSTGIS_SCHEMAS = {"tiger", "tiger_data", "topology"}
+
+def render_item(type_, obj, autogen_context):
+    """
+    Teach autogenerate to write the two custom column types from app/database.py.
+
+    Without this it renders them as their impl - a geometry column would come out as a plain
+    VARCHAR and a timestamp would lose its microseconds, and the generated migration would
+    silently disagree with the models.
+    """
+    if type_ == "type":
+        if isinstance(obj, Geometry):
+            autogen_context.imports.add("from app.database import Geometry")
+            return f"Geometry({obj.geometry_type!r}, {obj.srid})"
+        if isinstance(obj, UTCDateTime):
+            autogen_context.imports.add("from app.database import UTCDateTime")
+            return "UTCDateTime()"
+    return False
 
 
 def include_object(object_, name, type_, reflected, compare_to):
-    schema = getattr(object_, "schema", None)
-    if schema in POSTGIS_SCHEMAS:
-        return False
+    """Ignore anything in the database that the models do not describe."""
     if type_ == "table" and reflected and name not in target_metadata.tables:
         return False
     if type_ == "index":
         table = getattr(object_, "table", None)
         if table is not None and table.name not in target_metadata.tables:
             return False
-    # GeoAlchemy2's own filter handles the spatial indexes/columns it manages internally.
-    return alembic_helpers.include_object(object_, name, type_, reflected, compare_to)
+        # SPATIAL indexes are created by raw DDL in the migration, because Alembic has no way to
+        # express the SPATIAL keyword. Reflection sees them as ordinary indexes and would
+        # otherwise propose dropping them on every autogenerate.
+        if name and str(name).startswith("sp_"):
+            return False
+    return True
 
 
 def run_migrations_offline() -> None:
-    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=url,
+        url=config.get_main_option("sqlalchemy.url"),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         include_object=include_object,
-        render_item=alembic_helpers.render_item,
-        process_revision_directives=alembic_helpers.writer,
+        render_item=render_item,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -64,10 +80,8 @@ def run_migrations_online() -> None:
             connection=connection,
             target_metadata=target_metadata,
             include_object=include_object,
-            render_item=alembic_helpers.render_item,
-            process_revision_directives=alembic_helpers.writer,
+            render_item=render_item,
         )
-
         with context.begin_transaction():
             context.run_migrations()
 

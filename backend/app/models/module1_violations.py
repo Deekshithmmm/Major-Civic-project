@@ -16,13 +16,11 @@ import enum
 import uuid
 from datetime import datetime
 
-from geoalchemy2 import Geometry
-from sqlalchemy import DateTime, Enum, ForeignKey, Integer, Numeric, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Enum, ForeignKey, Integer, Numeric, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from app.database import Base
+from app.database import Base, Geometry, UTCDateTime
 
 
 class IdentityPath(str, enum.Enum):
@@ -35,7 +33,7 @@ class ViolationClassConfig(Base):
 
     __tablename__ = "violation_class_configs"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     identity_path: Mapped[IdentityPath] = mapped_column(Enum(IdentityPath, name="identity_path"), nullable=False)
@@ -51,9 +49,9 @@ class FineLadderConfig(Base):
 
     __tablename__ = "fine_ladder_configs"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     violation_class_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("violation_class_configs.id"), nullable=False
+        Uuid(as_uuid=True), ForeignKey("violation_class_configs.id"), nullable=False
     )
     occurrence_number: Mapped[int] = mapped_column(Integer, nullable=False)  # 1st, 2nd, ...
     amount_rupees: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -68,7 +66,7 @@ class SyntheticVehicleRegistry(Base):
 
     __tablename__ = "synthetic_vehicle_registry"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     plate_number: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
     owner_name: Mapped[str] = mapped_column(String(255), nullable=False)
     contact_phone: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -91,16 +89,16 @@ class ViolationCase(Base):
 
     __tablename__ = "violation_cases"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     violation_class_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("violation_class_configs.id"), nullable=False
+        Uuid(as_uuid=True), ForeignKey("violation_class_configs.id"), nullable=False
     )
     violation_class: Mapped[ViolationClassConfig] = relationship()
 
     confidence_score: Mapped[float | None] = mapped_column(Numeric(4, 3), nullable=True)
     camera_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     location: Mapped[str] = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
-    ward_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    ward_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
     media_id: Mapped[str] = mapped_column(String(255), nullable=False)  # faces blurred in photos, not video
 
@@ -110,11 +108,11 @@ class ViolationCase(Base):
     status: Mapped[ViolationCaseStatus] = mapped_column(
         Enum(ViolationCaseStatus, name="violation_case_status"), default=ViolationCaseStatus.PENDING_REVIEW
     )
-    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
     source: Mapped[str] = mapped_column(String(50), default="camera_pipeline")  # or "citizen_upload"
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
 
 
 class ChallanStatus(str, enum.Enum):
@@ -130,17 +128,17 @@ class Challan(Base):
 
     __tablename__ = "challans"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     case_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("violation_cases.id"), unique=True, nullable=False
+        Uuid(as_uuid=True), ForeignKey("violation_cases.id"), unique=True, nullable=False
     )
     case: Mapped[ViolationCase] = relationship()
     statutory_section: Mapped[str | None] = mapped_column(String(255), nullable=True)
     amount_rupees: Mapped[int] = mapped_column(Integer, nullable=False)
-    due_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    due_date: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
     status: Mapped[ChallanStatus] = mapped_column(Enum(ChallanStatus, name="challan_status"), default=ChallanStatus.ISSUED)
 
     dispute_reason: Mapped[str | None] = mapped_column(String(1000), nullable=True)
-    second_reviewer_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    second_reviewer_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())

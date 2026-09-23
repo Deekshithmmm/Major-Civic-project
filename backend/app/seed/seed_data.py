@@ -12,11 +12,12 @@ from datetime import datetime, timedelta, timezone
 
 from PIL import Image, ImageDraw
 from sqlalchemy import select, text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.auth import hash_password
 from app.config import get_settings
-from app.database import Base, SessionLocal, engine
+from app.database import Base, SessionLocal, engine, geo_point
 from app.models.jurisdiction import Ward
 from app.models.module1_violations import (
     Challan,
@@ -157,7 +158,11 @@ def _ward_polygon_wkt(row: int, col: int) -> str:
     lat0 = CITY_ORIGIN_LAT + row * WARD_SIZE_DEG
     lng0 = CITY_ORIGIN_LNG + col * WARD_SIZE_DEG
     lat1, lng1 = lat0 + WARD_SIZE_DEG, lng0 + WARD_SIZE_DEG
-    return f"SRID=4326;POLYGON(({lng0} {lat0}, {lng1} {lat0}, {lng1} {lat1}, {lng0} {lat1}, {lng0} {lat0}))"
+    # Latitude first: MySQL reads SRID 4326 in EPSG axis order. A ring must also close on
+    # its first vertex or MySQL rejects the polygon outright.
+    return (
+        f"POLYGON(({lat0} {lng0}, {lat0} {lng1}, {lat1} {lng1}, {lat1} {lng0}, {lat0} {lng0}))"
+    )
 
 
 def _ward_center(row: int, col: int) -> tuple[float, float]:
@@ -319,7 +324,7 @@ def seed_police_stations(db: Session, wards: dict[str, Ward]) -> dict[str, Polic
             code=code,
             ward_id=wards[ward_name].id,
             address=address,
-            location=f"SRID=4326;POINT({lng + dlng} {lat + dlat})",
+            location=geo_point(lat + dlat, lng + dlng),
             sho_name=sho,
             contact_phone="+91-90000-10000",
             contact_email=f"{code.lower()}@police.demo.city",
@@ -597,7 +602,7 @@ def seed_sample_infra_issues(db: Session, wards: dict[str, Ward], categories: di
         issue = InfrastructureIssue(
             category_id=category.id,
             description=f"Synthetic seed report: {category.label} near {ward_name} center.",
-            location=f"SRID=4326;POINT({lng} {lat})",
+            location=geo_point(lat, lng),
             ward_id=ward.id,
             media_id=media_id,
             tracking_token=new_tracking_code(db),
@@ -630,7 +635,7 @@ def seed_sample_violation_cases(db: Session, wards: dict[str, Ward], classes: di
             violation_class_id=classes["illegal_parking"].id,
             confidence_score=0.91,
             camera_id="CAM-003",
-            location=f"SRID=4326;POINT({lng} {lat})",
+            location=geo_point(lat, lng),
             media_id=media_id,
             identity_path=IdentityPath.ANPR,
             resolved_plate_number=vehicles[0].plate_number,
@@ -645,7 +650,7 @@ def seed_sample_violation_cases(db: Session, wards: dict[str, Ward], classes: di
             violation_class_id=classes["littering"].id,
             confidence_score=0.83,
             camera_id="CAM-007",
-            location=f"SRID=4326;POINT({lng2} {lat2})",
+            location=geo_point(lat2, lng2),
             media_id=media_id2,
             identity_path=IdentityPath.UNIDENTIFIED,
             status=ViolationCaseStatus.PENDING_REVIEW,
@@ -756,12 +761,23 @@ def main() -> None:
             "Seed data is for local development only."
         )
 
-    # Deliberately does NOT create tables. create_all() builds the schema without the things
-    # only migrations add - the append-only triggers on the audit log, chain of custody and
-    # station diaries, and the constraint that stops a restricted report being unrestricted -
-    # so a failed migration would be papered over with a database that merely looks right.
-    with engine.connect() as connection:
-        stamped = connection.execute(text("SELECT count(*) FROM alembic_version")).scalar()
+    # Deliberately does NOT create tables. create_all() builds the schema without the things only
+    # migrations add - the append-only triggers on the audit log, chain of custody and station
+    # diaries, and the one that stops a restricted report being unrestricted - so a failed
+    # migration would be papered over with a database that merely looks right. On MySQL it could
+    # not succeed anyway: this script connects as the application account, which holds no DDL.
+    try:
+        with engine.connect() as connection:
+            stamped = connection.execute(text("SELECT count(*) FROM alembic_version")).scalar()
+    except OperationalError as exc:
+        # Almost always the hardening step: until it runs, the application account has no
+        # privileges at all and even reading alembic_version is refused. Say so, rather than
+        # letting a raw "access denied" send someone hunting for a wrong password.
+        raise SystemExit(
+            f"Could not read the database as the application account: {exc.orig}\n"
+            "If this is access denied, the privileges have not been applied yet. Run:\n"
+            "  alembic upgrade head && python -m app.db.harden"
+        ) from exc
     if not stamped:
         raise SystemExit("Database is not migrated. Run: alembic upgrade head")
     db = SessionLocal()

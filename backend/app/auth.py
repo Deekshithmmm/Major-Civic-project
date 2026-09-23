@@ -4,6 +4,7 @@ anywhere"). Every citizen-facing endpoint in this codebase must never depend on
 `get_current_user` or any of the role dependencies below.
 """
 
+import uuid
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -50,10 +51,15 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         # algorithms is an allowlist: without it a token could name its own algorithm, which is
         # how "alg: none" and HMAC-vs-RSA confusion attacks get in.
         payload = jwt.decode(token, settings.jwt_secret, algorithms=[settings.jwt_algorithm])
-        user_id = payload.get("sub")
-        if user_id is None:
+        subject = payload.get("sub")
+        if subject is None:
             raise credentials_exception
-    except jwt.PyJWTError:
+        # A JWT claim is always a string, but the primary key is a UUID, and the MySQL-backed
+        # Uuid type will not coerce one to the other. Parsing here also means a token carrying a
+        # malformed subject is rejected as bad credentials rather than raising out of the query
+        # layer as a 500 - which is both a nicer error and one that leaks less.
+        user_id = uuid.UUID(str(subject))
+    except (jwt.PyJWTError, ValueError):
         raise credentials_exception
 
     user = db.get(User, user_id)

@@ -1,6 +1,6 @@
 """
 Module 3 - civic infrastructure reporting (spec 2.4). The only fully end-to-end module in this
-build: citizen upload -> shared media pipeline -> PostGIS jurisdiction resolution -> SLA timer
+build: citizen upload -> shared media pipeline -> spatial jurisdiction resolution -> SLA timer
 -> notify responsible desk -> public status board, with 50m duplicate clustering and an
 officer-side acknowledge/progress/resolve flow gated on a proof photo.
 """
@@ -10,13 +10,11 @@ import uuid
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from geoalchemy2.functions import ST_X, ST_Y, ST_SetSRID, ST_MakePoint
-from geoalchemy2.shape import to_shape
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, require_roles
-from app.database import get_db
+from app.database import distance_metres, geo_point, get_db, parse_point
 from app.models.audit import AuditAction, AuditLogEntry
 from app.models.module3_infra import (
     InfrastructureIssue,
@@ -49,14 +47,14 @@ DUPLICATE_LOOKBACK_STATUSES = [IssueStatus.REPORTED, IssueStatus.ACKNOWLEDGED, I
 
 
 def _issue_to_public(issue: InfrastructureIssue) -> IssuePublicResponse:
-    point = to_shape(issue.location)
+    lat, lng = parse_point(issue.location)
     return IssuePublicResponse(
         id=issue.id,
         category_slug=issue.category.slug,
         category_label=issue.category.label,
         description=issue.description,
-        lat=point.y,
-        lng=point.x,
+        lat=lat,
+        lng=lng,
         status=issue.status,
         upvote_count=issue.upvote_count,
         sla_deadline=issue.sla_deadline,
@@ -103,17 +101,16 @@ def create_issue(
     data = read_upload(file, max_bytes_for(content_type))
     processed = process_and_store(data, content_type, key_prefix="module3")
 
-    point_wkt = f"SRID=4326;POINT({lng} {lat})"
+    point_wkt = geo_point(lat, lng)
     ward = resolve_ward(db, lat=lat, lng=lng)
 
     # Duplicate clustering: same category, open, within the category's radius (spec 2.4 step 7).
-    new_point = ST_SetSRID(ST_MakePoint(lng, lat), 4326)
     duplicate_stmt = (
         select(InfrastructureIssue)
         .where(
             InfrastructureIssue.category_id == category.id,
             InfrastructureIssue.status.in_(DUPLICATE_LOOKBACK_STATUSES),
-            func.ST_DistanceSphere(InfrastructureIssue.location, new_point) <= category.duplicate_radius_meters,
+            distance_metres(InfrastructureIssue.location, lat, lng) <= category.duplicate_radius_meters,
         )
         .order_by(InfrastructureIssue.created_at.asc())
     )

@@ -11,21 +11,11 @@ import enum
 import uuid
 from datetime import datetime
 
-from geoalchemy2 import Geometry
-from sqlalchemy import (
-    DateTime,
-    Enum,
-    ForeignKey,
-    Integer,
-    Numeric,
-    String,
-    Text,
-)
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Enum, ForeignKey, Integer, Numeric, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
-from app.database import Base
+from app.database import Base, Geometry, UTCDateTime
 
 
 class IssueStatus(str, enum.Enum):
@@ -45,7 +35,7 @@ class IssueCategory(Base):
 
     __tablename__ = "issue_categories"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     label: Mapped[str] = mapped_column(String(255), nullable=False)
     sla_hours: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -57,15 +47,15 @@ class IssueCategory(Base):
 class InfrastructureIssue(Base):
     __tablename__ = "infrastructure_issues"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     category_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("issue_categories.id"), nullable=False
+        Uuid(as_uuid=True), ForeignKey("issue_categories.id"), nullable=False
     )
     category: Mapped[IssueCategory] = relationship()
 
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     location: Mapped[str] = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
-    ward_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    ward_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
     status: Mapped[IssueStatus] = mapped_column(
         Enum(IssueStatus, name="issue_status"), default=IssueStatus.REPORTED, nullable=False
@@ -83,13 +73,13 @@ class InfrastructureIssue(Base):
     # table alone does not reveal which issue a phone number belongs to (spec 2.6).
     contact_token: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
-    sla_deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    sla_deadline: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     resolution_proof_media_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+        UTCDateTime, server_default=func.now(), onupdate=func.now()
     )
 
 
@@ -98,14 +88,14 @@ class IssueStatusHistory(Base):
 
     __tablename__ = "issue_status_history"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     issue_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("infrastructure_issues.id"), nullable=False, index=True
+        Uuid(as_uuid=True), ForeignKey("infrastructure_issues.id"), nullable=False, index=True
     )
     status: Mapped[IssueStatus] = mapped_column(Enum(IssueStatus, name="issue_status_history_status"), nullable=False)
-    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
 
 
 class IssueContactPhone(Base):
@@ -118,7 +108,7 @@ class IssueContactPhone(Base):
 
     __tablename__ = "issue_contact_phones"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     contact_token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())

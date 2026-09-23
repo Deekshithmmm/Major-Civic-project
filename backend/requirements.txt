@@ -1,8 +1,10 @@
 fastapi==0.141.1
 uvicorn[standard]==0.53.0
 sqlalchemy==2.0.54
-geoalchemy2==0.20.0
-psycopg[binary]==3.3.6
+# MySQL 8 is the database of record. PyMySQL is pure Python, so there is no build step on
+# Windows; cryptography is what lets it speak MySQL 8's default caching_sha2_password auth.
+pymysql==1.2.3
+cryptography==50.0.1
 alembic==1.20.0
 pydantic==2.13.5
 # Required by pydantic's EmailStr (used on the officer login schema).

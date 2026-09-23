@@ -28,12 +28,11 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Enum, ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.database import Base
+from app.database import Base, UTCDateTime
 
 
 class GrievanceGround(str, enum.Enum):
@@ -62,7 +61,7 @@ class GrievanceStatus(str, enum.Enum):
 class Grievance(Base):
     __tablename__ = "content_grievances"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Numeric, because a complainant reads it back over the phone to the Grievance Officer. It is
     # safe for it to be short only because the tracking endpoint returns status and dates and
@@ -70,7 +69,7 @@ class Grievance(Base):
     ticket: Mapped[str] = mapped_column(String(20), unique=True, index=True, nullable=False)
 
     report_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("corruption_reports.id", ondelete="CASCADE"), nullable=False, index=True
+        Uuid(as_uuid=True), ForeignKey("corruption_reports.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     ground: Mapped[GrievanceGround] = mapped_column(Enum(GrievanceGround, name="grievance_ground"), nullable=False)
@@ -86,15 +85,15 @@ class Grievance(Base):
         Enum(GrievanceStatus, name="grievance_status"), default=GrievanceStatus.RECEIVED, nullable=False
     )
 
-    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now(), nullable=False)
     # Set when the automatic acknowledgement actually goes out, not when the row is written. If
     # the mail gateway is down this stays null and the 24-hour duty is visibly in breach, which
     # is the honest outcome.
-    acknowledged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    acknowledged_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    decided_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    decided_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
 
 class ReplyStatus(str, enum.Enum):
@@ -120,9 +119,9 @@ class RightOfReply(Base):
 
     __tablename__ = "right_of_reply"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     report_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("corruption_reports.id", ondelete="CASCADE"), nullable=False, index=True
+        Uuid(as_uuid=True), ForeignKey("corruption_reports.id", ondelete="CASCADE"), nullable=False, index=True
     )
 
     body: Mapped[str] = mapped_column(Text, nullable=False)
@@ -135,6 +134,6 @@ class RightOfReply(Base):
     status: Mapped[ReplyStatus] = mapped_column(
         Enum(ReplyStatus, name="reply_status"), default=ReplyStatus.PENDING, nullable=False
     )
-    submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    submitted_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now(), nullable=False)
+    published_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)

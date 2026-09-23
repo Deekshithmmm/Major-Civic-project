@@ -28,12 +28,11 @@ import enum
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Date, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.database import Base
+from app.database import Base, UTCDateTime
 
 
 class DiaryEntryType(str, enum.Enum):
@@ -60,9 +59,9 @@ class StationDiaryEntry(Base):
 
     __tablename__ = "station_diary_entries"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     station_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("police_stations.id"), nullable=False, index=True
+        Uuid(as_uuid=True), ForeignKey("police_stations.id"), nullable=False, index=True
     )
     entry_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     serial_no: Mapped[int] = mapped_column(Integer, nullable=False)  # restarts each day, per station
@@ -70,11 +69,11 @@ class StationDiaryEntry(Base):
     entry_type: Mapped[DiaryEntryType] = mapped_column(Enum(DiaryEntryType, name="diary_entry_type"), nullable=False)
     detail: Mapped[str] = mapped_column(Text, nullable=False)
 
-    report_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
-    fir_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
-    officer_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    report_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True, index=True)
+    fir_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True, index=True)
+    officer_user_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
 
     __table_args__ = (UniqueConstraint("station_id", "entry_date", "serial_no", name="uq_gd_serial_per_station_day"),)
 
@@ -94,16 +93,16 @@ class FirRecord(Base):
 
     __tablename__ = "fir_records"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     station_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("police_stations.id"), nullable=False, index=True
+        Uuid(as_uuid=True), ForeignKey("police_stations.id"), nullable=False, index=True
     )
     # Station-issued, sequential per year: "0042/2026".
     fir_number: Mapped[str] = mapped_column(String(32), nullable=False)
     year: Mapped[int] = mapped_column(Integer, nullable=False)
 
     report_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("emergency_reports.id"), unique=True, nullable=False
+        Uuid(as_uuid=True), ForeignKey("emergency_reports.id"), unique=True, nullable=False
     )
     sections: Mapped[str] = mapped_column(String(500), nullable=False)  # e.g. "BNS 103, 3(5)"
 
@@ -111,24 +110,24 @@ class FirRecord(Base):
     # transfer to the right one. The registration still counts; only the investigation moves.
     is_zero_fir: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     transferred_to_station_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("police_stations.id"), nullable=True
+        Uuid(as_uuid=True), ForeignKey("police_stations.id"), nullable=True
     )
 
-    registered_by_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    registered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    investigating_officer_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    registered_by_user_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
+    registered_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
+    investigating_officer_id: Mapped[uuid.UUID | None] = mapped_column(Uuid(as_uuid=True), nullable=True)
 
     # When the investigation is expected to conclude. Surfaced to the station and counted by the
     # public ledger; see services/station.py for how the window is chosen.
-    investigation_deadline: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    investigation_deadline: Mapped[datetime] = mapped_column(UTCDateTime, nullable=False)
 
     status: Mapped[FirStatus] = mapped_column(
         Enum(FirStatus, name="fir_status"), default=FirStatus.UNDER_INVESTIGATION, nullable=False
     )
-    chargesheet_filed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    chargesheet_filed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     court_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     closure_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    closed_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
 
     __table_args__ = (UniqueConstraint("station_id", "fir_number", name="uq_fir_number_per_station"),)
 
@@ -138,10 +137,10 @@ class CaseDiaryEntry(Base):
 
     __tablename__ = "case_diary_entries"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     fir_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("fir_records.id"), nullable=False, index=True
+        Uuid(as_uuid=True), ForeignKey("fir_records.id"), nullable=False, index=True
     )
-    officer_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    officer_user_id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), nullable=False)
     detail: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())

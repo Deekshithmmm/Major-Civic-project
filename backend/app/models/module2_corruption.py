@@ -13,12 +13,11 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Boolean, Enum, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
-from app.database import Base
+from app.database import Base, UTCDateTime
 
 
 class AccusedPartyType(str, enum.Enum):
@@ -38,7 +37,7 @@ class RoutingRule(Base):
 
     __tablename__ = "corruption_routing_rules"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
     accused_party_type: Mapped[AccusedPartyType] = mapped_column(
         Enum(AccusedPartyType, name="accused_party_type"), unique=True, nullable=False
     )
@@ -62,7 +61,7 @@ class PublicStatusBadge(str, enum.Enum):
 class CorruptionReport(Base):
     __tablename__ = "corruption_reports"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     accused_department: Mapped[str] = mapped_column(String(255), nullable=False)
     accused_designation: Mapped[str] = mapped_column(String(255), nullable=False)
@@ -89,9 +88,9 @@ class CorruptionReport(Base):
     # then withdrawn" stays distinguishable from "never passed moderation". The uploader can read
     # the reason off their tracking token - their report vanishing without explanation would be
     # the platform doing quietly what it exists to expose.
-    taken_down_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    taken_down_at: Mapped[datetime | None] = mapped_column(UTCDateTime, nullable=True)
     takedown_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(UTCDateTime, server_default=func.now())
 
     # Explicitly absent, on purpose: uploader_id, ip_address, device_account, phone, email.

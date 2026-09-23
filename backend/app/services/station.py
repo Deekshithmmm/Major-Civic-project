@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.database import distance_metres
 from app.models.module4_emergency import OffenceCategory, PoliceStation
 from app.models.station import DiaryEntryType, FirRecord, StationDiaryEntry
 
@@ -32,11 +33,10 @@ def resolve_station(db: Session, lat: float, lng: float) -> PoliceStation | None
     ward can hold more than one station and the nearest is the one that can actually respond.
     Stations without a mapped location fall back to matching on ward.
     """
-    point = func.ST_SetSRID(func.ST_MakePoint(lng, lat), 4326)
     nearest = db.execute(
         select(PoliceStation)
         .where(PoliceStation.is_active.is_(True), PoliceStation.location.isnot(None))
-        .order_by(func.ST_DistanceSphere(PoliceStation.location, point))
+        .order_by(distance_metres(PoliceStation.location, lat, lng))
         .limit(1)
     ).scalars().first()
     return nearest
@@ -45,8 +45,9 @@ def resolve_station(db: Session, lat: float, lng: float) -> PoliceStation | None
 def station_distance_km(db: Session, station: PoliceStation, lat: float, lng: float) -> float | None:
     if station.location is None:
         return None
-    point = func.ST_SetSRID(func.ST_MakePoint(lng, lat), 4326)
-    metres = db.execute(select(func.ST_DistanceSphere(station.location, point))).scalar()
+    metres = db.execute(
+        select(distance_metres(PoliceStation.location, lat, lng)).where(PoliceStation.id == station.id)
+    ).scalar()
     return round(metres / 1000, 2) if metres is not None else None
 
 

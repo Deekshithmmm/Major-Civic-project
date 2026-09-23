@@ -115,7 +115,7 @@ left behind:
 | The feed | The report is gone |
 | The uploader's tracking code | "Withdrawn", and the reason why |
 | The compliance figures | Upheld: 1 |
-| `audit_log` in psql | A `TAKEDOWN` row naming the moderator, on a table that rejects UPDATE, DELETE and TRUNCATE |
+| `audit_log` in MySQL | A `TAKEDOWN` row naming the moderator, on a table the application cannot rewrite, delete from or truncate |
 
 The line to say out loud: **the power to remove a citizen's report is the most dangerous thing in
 this system, so it is the most heavily recorded.** Nobody can use it quietly.
@@ -176,20 +176,37 @@ Run the smoke test on screen:
 cd backend && python -m tests.smoke_test
 ```
 
-148 checks. It does not assert that buttons work — it asserts the guarantees: GPS metadata
+165 checks. It does not assert that buttons work — it asserts the guarantees: GPS metadata
 verified gone from the stored file, a moderator refused Module 4 on every route, evidence refused
 without a case number, the hotspot map suppressing small cells, and a takedown that cannot happen
 without leaving a row in an append-only audit table.
 
-Then, in `psql`, try to tamper with the record:
+Then try to tamper with the record, as the application itself would have to:
+
+```bash
+docker exec -it major-civic-project-db-1   mysql -ucivic -pcivic_dev_password civic_accountability
+```
+
+Connect as `civic` — the account the application itself uses, not as root. That is the whole
+point: these are the credentials an attacker would have.
 
 ```sql
 UPDATE audit_log SET detail = 'x';
 DELETE FROM station_diary_entries;
-UPDATE emergency_reports SET is_restricted = false WHERE is_restricted = true;
+TRUNCATE TABLE audit_log;
+UPDATE emergency_reports SET is_restricted = 0 WHERE is_restricted = 1;
 ```
 
-All three are refused by the database, not by application code.
+All four are refused by the database, not by application code — and by two different mechanisms.
+The UPDATEs and DELETE hit a trigger, which binds every account including the schema owner. The
+TRUNCATE is refused for a different reason: MySQL triggers do not fire on TRUNCATE at all, so
+what stops it is that `civic` was never granted the DROP privilege it needs.
+
+If a reviewer asks whether that is weaker than PostgreSQL, the honest answer is that the boundary
+sits in a slightly different place. PostgreSQL could refuse a TRUNCATE outright with a
+statement-level trigger; MySQL cannot, so the guarantee is expressed as a privilege instead. In
+both designs someone with full database credentials can get past it — and in both, the account
+the application runs as cannot.
 
 ---
 

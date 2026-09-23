@@ -7,7 +7,7 @@ only, no live government API integration, no real personal data.
 > Draft engineering project. Not legal advice. See the spec's Appendix for the legal reasoning
 > behind the design choices called out below.
 
-A scripted walkthrough for presenting it is in [`docs/DEMO.md`](docs/DEMO.md).
+A scripted walkthrough for presenting it is in [`docs/DEMO.md`](docs/DEMO.md), and the database schema — tables, keys, type decisions and the append-only guarantees — is documented in [`docs/database.md`](docs/database.md).
 
 ## What's built
 
@@ -15,7 +15,7 @@ All four modules are implemented, each with a citizen-facing flow and an officer
 
 | Module | Status |
 |---|---|
-| Shared plumbing (auth, DB, PostGIS jurisdictions, audit log, storage, media pipeline) | Built |
+| Shared plumbing (auth, DB, spatial jurisdictions, audit log, storage, media pipeline) | Built |
 | Module 3 — Civic infrastructure reporting | Built end to end |
 | Module 1 — Violation detection & enforcement assist | Built end to end, **except the CV pipeline**: there is no YOLOv8 detection and no ANPR/OCR, so cases arrive from citizen uploads or seed data and ANPR-path cases have no plate resolved until an officer supplies one. Officer review, challan issuance off a config-driven fine ladder, disputes and second-officer appeals all work. |
 | Module 2 — Anonymous corruption reporting | Built end to end: anonymous upload with browser-side coarse geohashing, routing-rules table, pre-publication moderation, public feed with status badges, tracking tokens, device-fingerprint rate limiting, and the IT Rules 2021 grievance channel — published Grievance Officer, 24-hour acknowledgement and 15-day disposal clocks, takedown on an upheld grievance, moderated right of reply published under the allegation, and the platform's own compliance figures. **Not built:** uploader-driven extra blur regions, audio muting. |
@@ -123,7 +123,7 @@ deliberately routes around them. Full reasoning is in the spec (Part 1); short v
 | Layer | Choice |
 |---|---|
 | Backend | FastAPI (Python), SQLAlchemy 2.0, Alembic |
-| DB | PostgreSQL 16 + PostGIS |
+| DB | MySQL 8.0 (InnoDB, utf8mb4, native spatial types) |
 | Object storage | MinIO (S3-compatible) |
 | Queue | Redis (wired for future async CV/notification jobs) |
 | Frontend | React + Vite + TypeScript + Tailwind CSS, Leaflet/OSM for maps |
@@ -134,14 +134,15 @@ deliberately routes around them. Full reasoning is in the spec (Part 1); short v
 Requires Docker Desktop, Python 3.10+, Node 20+.
 
 ```bash
-# 1. Start Postgres+PostGIS, MinIO, Redis
+# 1. Start MySQL, MinIO, Redis
 docker compose up -d
 
 # 2. Backend
 cd backend
 python -m venv .venv && .venv\Scripts\activate   # Windows
 pip install -r requirements.txt
-alembic upgrade head
+alembic upgrade head              # creates the schema, as the schema owner
+python -m app.db.harden           # REQUIRED - see "Three database accounts" below
 python -m app.seed.seed_data      # synthetic wards, officials, sample issues
 uvicorn app.main:app --reload --port 8000 --no-access-log
 
@@ -151,6 +152,10 @@ npm install
 npm run dev
 ```
 
+`python -m app.db.harden` is not optional and not a tidy-up step. Until it runs, the application
+account has no privileges at all and every request fails - which is deliberate, because it is also
+the step that makes the audit log append-only. Re-run it after any migration that adds a table.
+
 Backend API docs: http://localhost:8000/docs
 Frontend: http://localhost:5173
 MinIO console: http://localhost:9001 (user/pass in `.env`)
@@ -159,9 +164,50 @@ MinIO console: http://localhost:9001 (user/pass in `.env`)
 once at startup, so a theme value added while the server is running produces a "class does not
 exist" error in the browser even though `npm run build` succeeds from a fresh process.
 
-Postgres is published on **host port 5433**, not 5432, because a locally-installed Postgres
-commonly already holds 5432 — if the app can't authenticate as `civic`, you're almost certainly
-talking to a different Postgres.
+MySQL is published on **host port 3307**, not 3306, because a locally-installed MySQL commonly
+already holds 3306 — if the app can't authenticate as `civic`, you're almost certainly talking to
+a different MySQL.
+
+### Three database accounts
+
+The schema defines three accounts rather than one, and the separation is load-bearing:
+
+| Account | Holds | Used by |
+|---|---|---|
+| `civic` | Per-table SELECT/INSERT/UPDATE/DELETE. **No DDL whatsoever.** SELECT+INSERT only on the four append-only tables | The running application |
+| `civic_migrate` | Full DDL on the one schema | Alembic only |
+| `root` | Everything | `app.db.harden`, once, at setup |
+
+This exists because of a real difference between MySQL and the PostgreSQL schema it replaced.
+PostgreSQL can refuse a TRUNCATE with a statement-level `BEFORE TRUNCATE` trigger. **MySQL cannot:
+triggers do not fire on TRUNCATE at all, and the table empties with no error** — verified on
+MySQL 8.0.46 before the port was written, by doing exactly that to a probe table.
+
+What closes the hole is that TRUNCATE requires the DROP privilege, and `civic` has never been
+granted it. The result is two independent layers instead of one:
+
+```
+UPDATE / DELETE    refused by trigger      — for every account, including the schema owner
+TRUNCATE / DROP    refused by privilege    — for the account the application actually uses
+ALTER              refused by privilege    — for the account the application actually uses
+```
+
+A `civic_migrate` or `root` connection can still truncate the audit log, exactly as a PostgreSQL
+superuser could have dropped the trigger and done the same. The boundary that matters is that the
+credentials the application holds — the ones exposed if the application is compromised — cannot.
+Ten smoke-test checks assert all of this by connecting as each account in turn.
+
+### The one trap in the spatial code
+
+**MySQL reads SRID 4326 latitude-first. PostGIS reads it longitude-first.** MySQL honours the axis
+order in the EPSG definition; PostGIS does not. Get this backwards and every coordinate still
+looks like a plausible number while sitting in the wrong place on earth.
+
+So every WKT string in this codebase is `POINT(lat lng)`, and coordinates are read back with
+`ST_Latitude`/`ST_Longitude` rather than `ST_X`/`ST_Y`, so the axis is named rather than implied.
+`geo_point()` and `parse_point()` in `app/database.py` are the only places a coordinate pair is
+built or taken apart — go through them. Two smoke-test checks guard it: one measures a known
+1111 m separation, and one asserts every seeded station still sits inside the demo city.
 
 ### Demo accounts
 
@@ -181,7 +227,7 @@ With the stack running and freshly seeded:
 cd backend && python -m tests.smoke_test
 ```
 
-148 checks covering the guarantees that actually matter, across all four modules: EXIF
+165 checks covering the guarantees that actually matter, across all four modules: EXIF
 stripping verified on the stored photo, GPS/device tags and audio verified gone from the stored
 video, 50m duplicate clustering, proof-gated resolution, SLA breach + shareable card,
 officer-confirmed challans with the fine ladder read from config, appeal separation of duties,
@@ -196,7 +242,7 @@ The grievance checks assert the awkward cases rather than the happy path: a comp
 unpublished report is a 404 and not a 403 that would confirm the report exists, a ticket lookup
 returns neither the complainant nor the complaint text, a published reply carries the office but
 not the official who wrote it, an upheld grievance both removes the report and tells the
-anonymous uploader why, and the takedown is read back out of `audit_log` in PostgreSQL rather
+anonymous uploader why, and the takedown is read back out of `audit_log` in MySQL rather
 than taken on the API's word.
 
 Role separation is asserted in both directions: a moderator is refused Module 1 identity data
@@ -204,11 +250,12 @@ and every Module 4 route, and a municipal officer is refused Module 2 reports.
 
 It's safe to re-run without resetting — it picks a fresh map location each time so it never
 collides with its own earlier data, and skips the challan flow if a previous run already
-confirmed the one seeded ANPR case (144 passed / 1 skipped instead of 148). For the full set,
+confirmed the one seeded ANPR case (161 passed / 1 skipped instead of 165). For the full set,
 reset first:
 
 ```bash
-alembic downgrade base && alembic upgrade head && python -m app.seed.seed_data
+alembic downgrade base && alembic upgrade head
+python -m app.db.harden && python -m app.seed.seed_data
 ```
 
 ## Repo layout
@@ -220,7 +267,7 @@ backend/app/
                 "privacy by design" requirement.
   schemas/      Pydantic request/response schemas
   routers/      FastAPI routers
-  services/     jurisdiction resolution (PostGIS), media pipeline (metadata strip, photo
+  services/     jurisdiction resolution (MySQL spatial), media pipeline (metadata strip, photo
                 face blur, thumbnailing), storage (S3/MinIO), evidence vault (Module 4,
                 separate bucket), station (nearest-station routing, General Diary,
                 FIR numbering), transparency (ledger + k-anonymous hotspots), SLA
@@ -286,7 +333,7 @@ What is enforced in code:
 - **Security headers** on every API response: `nosniff`, `DENY` framing, no referrer, a
   `default-src 'none'` CSP, `no-store`, and HSTS outside development. The frontend is served from
   a different origin and needs its own.
-- **Coordinates are bounds-checked** before they reach PostGIS, and the media route only accepts
+- **Coordinates are bounds-checked** before they reach the database, and the media route only accepts
   keys matching the pattern this service generates — it cannot be used to probe for other objects
   or to smuggle traversal sequences.
 - **JWTs** are verified with an explicit algorithm allowlist, so neither `alg: none` nor a token

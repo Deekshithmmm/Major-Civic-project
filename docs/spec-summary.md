@@ -54,7 +54,7 @@ whoever owns the original PDF for a copy if you don't have one.
   transport corp), illegal hoarding (7d → town planning → commissioner), stray cattle (48h → animal
   husbandry → ward officer).
 - Flow: upload (photo/video + category + map pin, anonymous by default, optional phone in a
-  separate table) → metadata strip + blur (shared pipeline) → PostGIS jurisdiction resolution (ward,
+  separate table) → metadata strip + blur (shared pipeline) → spatial jurisdiction resolution (ward,
   zone, constituency) → notify responsible desk → SLA timer → public status board → duplicate
   clustering (50m radius, same category → merge + upvote).
 - No auto-posting to officials' social media — generates a shareable card for citizen-initiated

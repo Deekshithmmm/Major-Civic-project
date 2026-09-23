@@ -12,12 +12,11 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
-from geoalchemy2.shape import to_shape
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth import get_current_user, require_roles
-from app.database import get_db
+from app.database import geo_point, get_db, parse_point
 from app.models.audit import AuditAction, AuditLogEntry
 from app.models.module1_violations import (
     Challan,
@@ -48,14 +47,14 @@ officer_roles = require_roles(UserRole.MUNICIPAL_OFFICER, UserRole.ADMIN)
 
 
 def _case_to_response(case: ViolationCase) -> ViolationCaseResponse:
-    point = to_shape(case.location)
+    lat, lng = parse_point(case.location)
     return ViolationCaseResponse(
         id=case.id,
         violation_class_slug=case.violation_class.slug,
         violation_class_label=case.violation_class.label,
         confidence_score=float(case.confidence_score) if case.confidence_score is not None else None,
-        lat=point.y,
-        lng=point.x,
+        lat=lat,
+        lng=lng,
         media_id=case.media_id,
         media_kind=media_kind(case.media_id),
         identity_path=case.identity_path,
@@ -119,7 +118,7 @@ def citizen_upload(
 
     case = ViolationCase(
         violation_class_id=violation_class.id,
-        location=f"SRID=4326;POINT({lng} {lat})",
+        location=geo_point(lat, lng),
         media_id=processed.media_id,
         identity_path=violation_class.identity_path,
         source="citizen_upload",

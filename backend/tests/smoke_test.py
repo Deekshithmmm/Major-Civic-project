@@ -95,21 +95,30 @@ def media_info(data: bytes) -> str:
     return subprocess.run([FFMPEG, "-hide_banner", "-i", str(path)], capture_output=True, text=True).stderr
 
 
-def audit_rows_for(action: str, entity_id: str) -> int | None:
-    """
-    Count audit rows straight out of PostgreSQL rather than through an API.
+# The three accounts this schema defines. The whole point of the split is that they can do
+# different things, so the tests below connect as each one rather than as root for everything.
+DB_ACCOUNTS = {
+    "app": ("civic", "civic_dev_password"),
+    "owner": ("civic_migrate", "civic_migrate_password"),
+    "root": ("root", "civic_root_password"),
+}
 
-    The claim being tested is that a takedown leaves a permanent mark in a table nothing can
-    edit, so asking the application whether it logged something would be testing the wrong
-    thing. Returns None when psql is not reachable from wherever this is running, and the caller
-    skips rather than fails.
+
+def mysql(sql: str, as_account: str = "root") -> tuple[int, str] | None:
     """
+    Run a statement straight against MySQL, as one of the three accounts.
+
+    Talking to the database directly is the point: a claim that a table cannot be altered is not
+    tested by asking the application whether it tried. Returns (returncode, output), or None when
+    docker is not reachable from wherever this is running, so the caller can skip rather than
+    fail.
+    """
+    user, password = DB_ACCOUNTS[as_account]
     try:
         result = subprocess.run(
             [
                 "docker", "exec", "major-civic-project-db-1",
-                "psql", "-U", "civic", "-d", "civic_accountability", "-tAc",
-                f"SELECT count(*) FROM audit_log WHERE action = '{action}' AND entity_id = '{entity_id}'",
+                "mysql", f"-u{user}", f"-p{password}", "civic_accountability", "-N", "-s", "-e", sql,
             ],
             capture_output=True,
             text=True,
@@ -117,9 +126,27 @@ def audit_rows_for(action: str, entity_id: str) -> int | None:
         )
     except (OSError, subprocess.SubprocessError):
         return None
-    if result.returncode != 0:
+    combined = (result.stdout + result.stderr).replace("mysql: [Warning] Using a password on the command line interface can be insecure.", "").strip()
+    return result.returncode, combined
+
+
+def refused(sql: str, as_account: str) -> bool | None:
+    """True when MySQL refused the statement. None when docker is unreachable."""
+    outcome = mysql(sql, as_account)
+    if outcome is None:
         return None
-    return int(result.stdout.strip() or 0)
+    code, output = outcome
+    return code != 0 or "ERROR" in output
+
+
+def audit_rows_for(action: str, entity_id: str) -> int | None:
+    """Count audit rows in the table itself, not through an API."""
+    outcome = mysql(
+        f"SELECT count(*) FROM audit_log WHERE action = '{action}' AND entity_id = '{entity_id}'"
+    )
+    if outcome is None or outcome[0] != 0:
+        return None
+    return int(outcome[1].strip() or 0)
 
 
 def main() -> int:
@@ -840,6 +867,77 @@ def main() -> int:
         "the public ledger counts FIRs from the station register",
         any(row["firs_registered"] > 0 for row in ledger_after),
     )
+
+    print("\n== MySQL schema guarantees ==")
+    if mysql("SELECT 1") is None:
+        skip("database-level guarantees", "docker not reachable from here")
+    else:
+        # Layer 1: privileges. The application account is the one whose credentials are exposed
+        # if the app is compromised, so what *it* can do is the question that matters.
+        probe = (
+            "INSERT INTO audit_log (id, actor_user_id, action, entity_type, entity_id, detail) "
+            "VALUES (REPLACE(UUID(),'-',''), REPLACE(UUID(),'-',''), 'VIEW', 'smoke_probe', "
+            "'append-only-probe', 'written by the smoke test')"
+        )
+        check("the application account can append to the audit log", refused(probe, "app") is False)
+        check(
+            "the application account cannot rewrite an audit row",
+            refused("UPDATE audit_log SET detail = 'tampered'", "app") is True,
+        )
+        check(
+            "the application account cannot delete audit rows",
+            refused("DELETE FROM audit_log", "app") is True,
+        )
+        # The one PostgreSQL could stop with a trigger and MySQL cannot. Withholding the DROP
+        # privilege is what closes it; without app/db/harden.py this silently empties the table.
+        check(
+            "the application account cannot TRUNCATE the audit log",
+            refused("TRUNCATE TABLE audit_log", "app") is True,
+        )
+        check(
+            "the application account holds no DDL at all",
+            refused("ALTER TABLE audit_log ADD COLUMN probe INT", "app") is True,
+        )
+
+        # Layer 2: triggers, which bind every account including the schema owner.
+        for table in ("audit_log", "chain_of_custody_entries", "station_diary_entries", "case_diary_entries"):
+            check(
+                f"{table} refuses UPDATE even from the schema owner",
+                refused(f"UPDATE {table} SET id = id", "owner") is True,
+            )
+        check(
+            "a restricted emergency report can never be unrestricted, even by the schema owner",
+            refused("UPDATE emergency_reports SET is_restricted = 0 WHERE is_restricted = 1", "owner") is True,
+        )
+
+        # Axis order. MySQL reads SRID 4326 latitude-first and PostGIS reads it longitude-first,
+        # so a port that got this wrong would still return plausible numbers while placing every
+        # report in the wrong place. 0.01 degrees of latitude is ~1111 m anywhere on earth.
+        outcome = mysql(
+            "SELECT ROUND(ST_Distance_Sphere("
+            "ST_GeomFromText('POINT(12.9800 77.6000)', 4326), "
+            "ST_GeomFromText('POINT(12.9900 77.6000)', 4326)))"
+        )
+        metres = int(outcome[1].strip()) if outcome and outcome[0] == 0 and outcome[1].strip() else 0
+        check(
+            "SRID 4326 is read latitude-first, so distances are real metres",
+            1100 <= metres <= 1125,
+            f"0.01 deg of latitude measured as {metres} m, expected ~1111",
+        )
+
+        # Seeded geometry has to land in Bengaluru, not in the Indian Ocean off Somalia - which
+        # is exactly where a transposed lat/lng would put it.
+        outcome = mysql(
+            "SELECT COUNT(*) FROM police_stations WHERE location IS NOT NULL "
+            "AND ST_Latitude(location) BETWEEN 12.9 AND 13.1 "
+            "AND ST_Longitude(location) BETWEEN 77.5 AND 77.7"
+        )
+        in_city = int(outcome[1].strip()) if outcome and outcome[0] == 0 and outcome[1].strip() else 0
+        check("every seeded station sits inside the demo city", in_city >= 6, f"got {in_city}")
+
+        outcome = mysql("SELECT COUNT(*) FROM information_schema.statistics WHERE table_schema='civic_accountability' AND index_type='SPATIAL'")
+        spatial = int(outcome[1].strip()) if outcome and outcome[0] == 0 and outcome[1].strip() else 0
+        check("geometry columns carry spatial indexes", spatial >= 3, f"got {spatial}")
 
     print("\n== Security controls ==")
     headers = requests.get(f"{BASE}/health", timeout=10).headers

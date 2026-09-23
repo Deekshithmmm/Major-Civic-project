@@ -11,7 +11,25 @@ DEV_JWT_SECRET = "change_me_dev_only_not_for_production"
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    database_url: str = "postgresql+psycopg://civic:civic_dev_password@localhost:5433/civic_accountability"
+    # Host port 3307: a locally-installed MySQL commonly already holds 3306.
+    # This is the *application* account. It holds per-table DML and no DDL at all, which is
+    # what makes the audit log append-only here - see app/db/harden.py.
+    database_url: str = "mysql+pymysql://civic:civic_dev_password@localhost:3307/civic_accountability?charset=utf8mb4"
+
+    # The schema owner, used by Alembic and by the hardening script. Kept separate so that a
+    # compromise of the running application cannot alter or drop a table, let alone TRUNCATE
+    # the audit log.
+    migration_database_url: str = (
+        "mysql+pymysql://civic_migrate:civic_migrate_password@localhost:3307/civic_accountability?charset=utf8mb4"
+    )
+
+    # Setup only, used by `python -m app.db.harden` and nothing else. Granting privileges is user
+    # administration, which in MySQL is a global right - handing it to the schema owner would
+    # make that account able to mint itself any other account, and the separation it exists to
+    # create would be worth nothing.
+    admin_database_url: str = (
+        "mysql+pymysql://root:civic_root_password@localhost:3307/civic_accountability?charset=utf8mb4"
+    )
 
     jwt_secret: str = DEV_JWT_SECRET
     jwt_algorithm: str = "HS256"

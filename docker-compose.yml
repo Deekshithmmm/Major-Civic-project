@@ -1,20 +1,34 @@
 services:
   db:
-    image: postgis/postgis:16-3.4
+    image: mysql:8.0
+    command:
+      # Every timestamp in this system is UTC. MySQL's DATETIME carries no zone, so the server
+      # is pinned to UTC and the application converts at the boundary (see app/database.py).
+      # Without this, NOW() would follow the host's zone and server_default timestamps would
+      # silently disagree with application-written ones.
+      - --default-time-zone=+00:00
+      # utf8mb4, not utf8: ward names, station names and grievance text can carry Devanagari and
+      # Kannada, and MySQL's "utf8" is a 3-byte subset that cannot store every codepoint.
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_0900_ai_ci
     environment:
-      POSTGRES_USER: civic
-      POSTGRES_PASSWORD: civic_dev_password
-      POSTGRES_DB: civic_accountability
-    # Host port 5433: a locally-installed Postgres commonly already holds 5432 on dev machines.
+      MYSQL_ROOT_PASSWORD: civic_root_password
+      MYSQL_DATABASE: civic_accountability
+      # The schema owner, used by Alembic only. The application connects as a separate,
+      # far weaker user created in docker/mysql-init - see README, "Two database users".
+      MYSQL_USER: civic_migrate
+      MYSQL_PASSWORD: civic_migrate_password
+    # Host port 3307: a locally-installed MySQL commonly already holds 3306 on dev machines.
     ports:
-      - "5433:5432"
+      - "3307:3306"
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/mysql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U civic -d civic_accountability"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-pcivic_root_password"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   # quay.io, not Docker Hub: MinIO no longer publishes a `latest` tag to docker.io/minio/minio.
   minio:
