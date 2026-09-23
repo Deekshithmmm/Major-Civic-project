@@ -8,8 +8,12 @@ Run with: python -m app.seed.seed_data
 
 import io
 import secrets
+import subprocess
+import tempfile
+from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
+import imageio_ffmpeg
 from PIL import Image, ImageDraw
 from sqlalchemy import select, text
 from sqlalchemy.exc import OperationalError
@@ -64,6 +68,7 @@ from app.services.grievance import new_ticket
 from app.services.sla import compute_sla_deadline
 from app.services.station import investigation_deadline, log_diary, next_fir_number
 from app.services.tracking import new_tracking_code
+from app.services.media_pipeline import process_and_store
 from app.services.storage import ensure_buckets, put_object
 
 DEV_PASSWORD = "DevPassword123!"
@@ -178,6 +183,83 @@ def _placeholder_image_bytes(label: str, color: tuple[int, int, int]) -> bytes:
     buf = io.BytesIO()
     image.save(buf, format="JPEG", quality=85)
     return buf.getvalue()
+
+
+FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
+
+
+def _video_frame(i: int, total: int, w: int, h: int, label: str, color: tuple[int, int, int]) -> bytes:
+    """One frame of the synthetic clip, as raw RGB."""
+    image = Image.new("RGB", (w, h), color=tuple(min(255, c + 60) for c in color))
+    draw = ImageDraw.Draw(image)
+
+    horizon = int(h * 0.42)
+    draw.rectangle([0, horizon, w, h], fill=color)
+    progress = i / max(total - 1, 1)
+
+    # Lane markings sliding towards the camera, so the clip reads as motion rather than as a
+    # still that happens to be in a video container.
+    for lane in range(-1, 7):
+        x = int((lane + progress) * (w / 5)) - 40
+        draw.polygon([(x, h - 30), (x + 60, h - 30), (x + 48, h - 10), (x - 12, h - 10)], fill=(235, 235, 225))
+
+    vx = int(progress * (w + 160)) - 160
+    draw.rectangle([vx, horizon - 46, vx + 130, horizon + 10], fill=(210, 70, 55))
+    draw.rectangle([vx + 22, horizon - 70, vx + 100, horizon - 44], fill=(180, 55, 45))
+    draw.ellipse([vx + 14, horizon - 2, vx + 42, horizon + 26], fill=(28, 28, 32))
+    draw.ellipse([vx + 88, horizon - 2, vx + 116, horizon + 26], fill=(28, 28, 32))
+
+    draw.rectangle([0, 0, w, 44], fill=(12, 20, 20))
+    draw.text((14, 8), "SYNTHETIC SEED DATA - not real footage", fill=(255, 210, 90))
+    draw.text((14, 24), label[:70], fill=(240, 240, 240))
+
+    # The timecode needs its own backing: over a lane marking it would be white on white.
+    draw.rectangle([w - 96, h - 26, w - 8, h - 6], fill=(12, 20, 20))
+    draw.text((w - 88, h - 22), f"00:{i // 12:02d}.{i % 12:02d}", fill=(240, 240, 240))
+    return image.tobytes()
+
+
+def _placeholder_video_bytes(label: str, color: tuple[int, int, int], seconds: int = 4) -> bytes:
+    """
+    A real, playable H.264 MP4 - roughly 13 KB for four seconds - with invented content.
+
+    Real *files* rather than real *footage*, deliberately. This is a system that blurs faces and
+    never publishes crime video; seeding it with actual recordings of actual people would
+    contradict the thing it exists to demonstrate, quite apart from who owns the footage. What
+    matters for a demo is that the video pipeline, the player and the metadata stripping are
+    exercised by something that genuinely decodes, and these are.
+
+    Frames are drawn with Pillow and piped to the ffmpeg binary that ships with imageio-ffmpeg,
+    so there is nothing to install and no file to fetch over the network.
+    """
+    w, h, fps = 640, 360, 12
+    total = seconds * fps
+    with tempfile.TemporaryDirectory() as tmp:
+        out_path = Path(tmp) / "clip.mp4"
+        proc = subprocess.Popen(
+            [
+                FFMPEG, "-hide_banner", "-loglevel", "error", "-y",
+                "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{w}x{h}", "-r", str(fps),
+                "-i", "pipe:0",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "30",
+                "-pix_fmt", "yuv420p",
+                # faststart puts the index at the front, so a browser can begin playing before
+                # the whole file has arrived. On a 3G connection that is the difference between
+                # playing and appearing broken.
+                "-movflags", "+faststart",
+                str(out_path),
+            ],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        assert proc.stdin is not None
+        for i in range(total):
+            proc.stdin.write(_video_frame(i, total, w, h, label, color))
+        proc.stdin.close()
+        if proc.wait() != 0:
+            raise RuntimeError((proc.stderr.read() or b"").decode(errors="replace")[:500])
+        return out_path.read_bytes()
 
 
 def seed_wards(db: Session) -> dict[str, Ward]:
@@ -528,9 +610,12 @@ def seed_emergency_reports(db: Session, wards: dict[str, Ward], stations: dict[s
         now - timedelta(days=1),
         acknowledged=now - timedelta(hours=20),
     )
-    evidence = _placeholder_image_bytes("SEALED EVIDENCE - synthetic", (30, 30, 60))
+    # Stored exactly as received, because the seal is a hash of these bytes - running it through
+    # the stripping pipeline first would change the file and the hash would no longer prove
+    # anything about what was handed in.
+    evidence = _placeholder_video_bytes("SEALED EVIDENCE - synthetic", (30, 30, 60))
     with_evidence.original_sha256 = seal(evidence)
-    with_evidence.media_id = store_evidence(evidence, "image/jpeg")
+    with_evidence.media_id = store_evidence(evidence, "video/mp4")
     db.flush()
     db.add(
         ChainOfCustodyEntry(
@@ -578,21 +663,32 @@ def seed_sample_infra_issues(db: Session, wards: dict[str, Ward], categories: di
         return
     ensure_buckets()
 
+    # The last element is whether this report carries video rather than a photo. Two of the five
+    # do, because a board where every report is a still says nothing about whether video works.
     samples = [
-        ("pothole", "Lakeview Ward", IssueStatus.REPORTED, (255, 140, 0)),
-        ("street_light", "Market Ward", IssueStatus.ACKNOWLEDGED, (30, 30, 30)),
-        ("uncollected_garbage", "Riverside Ward", IssueStatus.OVERDUE, (100, 80, 40)),
-        ("blocked_drain", "Hillview Ward", IssueStatus.RESOLVED, (60, 90, 160)),
-        ("pothole", "Market Ward", IssueStatus.REPORTED, (255, 140, 0)),
+        ("pothole", "Lakeview Ward", IssueStatus.REPORTED, (70, 72, 78), True),
+        ("street_light", "Market Ward", IssueStatus.ACKNOWLEDGED, (30, 30, 30), False),
+        ("uncollected_garbage", "Riverside Ward", IssueStatus.OVERDUE, (100, 80, 40), True),
+        ("blocked_drain", "Hillview Ward", IssueStatus.RESOLVED, (60, 90, 160), False),
+        ("pothole", "Market Ward", IssueStatus.REPORTED, (255, 140, 0), False),
     ]
 
-    for slug, ward_name, target_status, color in samples:
+    for slug, ward_name, target_status, color, as_video in samples:
         ward = wards[ward_name]
         row = next(w for w in WARDS if w["name"] == ward_name)
         lat, lng = _ward_center(row["row"], row["col"])
         category = categories[slug]
 
-        media_id = put_object(_placeholder_image_bytes(f"{category.label} - {ward_name}", color), "image/jpeg", key_prefix="module3")
+        label = f"{category.label} - {ward_name}"
+        if as_video:
+            # Through the real pipeline, not straight to storage: this is the path that strips
+            # location and device tags out of a video, and seeding around it would leave it
+            # untested on the one kind of file where it matters most.
+            media_id = process_and_store(
+                _placeholder_video_bytes(label, color), "video/mp4", key_prefix="module3"
+            ).media_id
+        else:
+            media_id = put_object(_placeholder_image_bytes(label, color), "image/jpeg", key_prefix="module3")
 
         if target_status == IssueStatus.OVERDUE:
             sla_deadline = datetime.now(timezone.utc) - timedelta(hours=5)
@@ -629,7 +725,10 @@ def seed_sample_violation_cases(db: Session, wards: dict[str, Ward], classes: di
     ensure_buckets()
 
     lat, lng = _ward_center(0, 0)
-    media_id = put_object(_placeholder_image_bytes("Illegal parking - camera 3", (50, 50, 90)), "image/jpeg", key_prefix="module1")
+    # A camera-sourced violation is footage in real life, so it is footage here.
+    media_id = process_and_store(
+        _placeholder_video_bytes("Illegal parking - camera 3", (50, 50, 90)), "video/mp4", key_prefix="module1"
+    ).media_id
     db.add(
         ViolationCase(
             violation_class_id=classes["illegal_parking"].id,
@@ -678,7 +777,14 @@ def seed_sample_corruption_reports(db: Session) -> None:
         )
     )
 
-    media_id2 = put_object(_placeholder_image_bytes("Corruption report (seed, published)", (20, 60, 20)), "image/jpeg", key_prefix="module2")
+    # The published one carries video on purpose: faces are blurred in photos but *not* in
+    # video, so on this feed a moderator is the only check for identifiable bystanders. A demo
+    # that only ever shows stills hides the one case where that caveat bites.
+    media_id2 = process_and_store(
+        _placeholder_video_bytes("Corruption report (seed, published)", (20, 60, 20)),
+        "video/mp4",
+        key_prefix="module2",
+    ).media_id
     db.add(
         CorruptionReport(
             accused_department="Roads & Works Department",

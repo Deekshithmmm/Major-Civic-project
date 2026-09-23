@@ -176,7 +176,7 @@ Run the smoke test on screen:
 cd backend && python -m tests.smoke_test
 ```
 
-165 checks. It does not assert that buttons work — it asserts the guarantees: GPS metadata
+176 checks. It does not assert that buttons work — it asserts the guarantees: GPS metadata
 verified gone from the stored file, a moderator refused Module 4 on every route, evidence refused
 without a case number, the hotspot map suppressing small cells, and a takedown that cannot happen
 without leaving a row in an append-only audit table.
