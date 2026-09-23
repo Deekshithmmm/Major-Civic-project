@@ -230,6 +230,57 @@ SOFT_REFERENCES = {
 # keys rather than rows, camera_id is a camera's name, and audit_log.entity_id can point at any
 # table at all, so there is nothing single to resolve it against.
 
+# Tables a reader may add rows to directly from /database. Every one is reference or
+# configuration data: a new category of problem, another police station, a different fine.
+# Adding to these is exactly how a city would set the system up for itself.
+EDITABLE = {
+    "issue_categories",
+    "violation_class_configs",
+    "fine_ladder_configs",
+    "corruption_routing_rules",
+    "emergency_routing_rules",
+    "police_stations",
+    "responsible_desks",
+    "synthetic_vehicle_registry",
+    "wards",
+}
+
+# Everything else is refused, and the reason is shown on the page rather than the button simply
+# being missing. Several of these refusals are the system's own guarantees restated: a record
+# that anybody can hand-write proves nothing, which is the entire argument for the audit log.
+# Where the right route is a form elsewhere in the app, it is named.
+WRITE_BLOCKED = {
+    "audit_log": ("This is written only by the action it records. A log anyone can type into by "
+                  "hand would prove nothing, which is the whole reason it exists.", None),
+    "chain_of_custody_entries": ("Written only when evidence is actually sealed or opened. "
+                                 "Hand-written custody is no custody.", None),
+    "station_diary_entries": ("The station's diary is written by the procedure it records - "
+                              "registering an FIR writes its own line.", None),
+    "case_diary_entries": ("Added by the investigating officer through the station panel, so the "
+                           "entry carries who wrote it.", "/officer"),
+    "fir_records": ("An FIR number comes from the station's own sequence, not from a form. "
+                    "Register one through the station panel.", "/officer"),
+    "challans": ("A fine has to be issued by a named officer after reviewing the evidence. One "
+                 "created any other way would have no legal standing.", "/officer"),
+    "infrastructure_issues": ("Report one properly instead - that way the photo is stripped of "
+                              "location data, the ward is resolved and the deadline starts.",
+                              "/report"),
+    "violation_cases": ("Submit evidence through the violations form so it goes to an officer "
+                        "for review rather than appearing already decided.", "/violations/report"),
+    "corruption_reports": ("File one anonymously through the proper form, which is the only path "
+                           "that keeps it anonymous.", "/corruption/report"),
+    "emergency_reports": ("These route to a police station and seal evidence on arrival. Use the "
+                          "emergency form.", "/emergency"),
+    "content_grievances": ("Filed through the grievance form so the statutory clocks start.",
+                           "/corruption/grievance"),
+    "right_of_reply": ("Submitted by the office concerned, then verified by a moderator.", None),
+    "issue_status_history": ("Written when a status actually changes.", None),
+    "issue_contact_phones": ("A resident's phone number is attached by them, at the point of "
+                             "reporting, and deleted when the problem is fixed.", None),
+    "users": ("Staff accounts are created by an administrator, with the password hashed. Adding "
+              "one here would mean typing a password into a database form.", None),
+}
+
 APPEND_ONLY = {"audit_log", "chain_of_custody_entries", "station_diary_entries", "case_diary_entries"}
 
 # Not shown at all: Alembic's own bookkeeping, which means nothing to a reader.

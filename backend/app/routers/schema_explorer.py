@@ -13,8 +13,12 @@ all. The page tells the reader which columns were withheld and why, because a re
 not visible teaches the reader the wrong thing about the system.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status
+import re
+import uuid
+
+from fastapi import APIRouter, Body, Depends, HTTPException, status
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -22,10 +26,12 @@ from app.database import get_db
 from app.services.schema_catalogue import (
     APPEND_ONLY,
     COLUMN_NOTES,
+    EDITABLE,
     GROUPS,
     HIDDEN_TABLES,
     SOFT_REFERENCES,
     TABLES,
+    WRITE_BLOCKED,
     humanise,
 )
 
@@ -84,7 +90,8 @@ def _require_development() -> None:
 def _columns(db: Session, table: str) -> list[dict]:
     rows = db.execute(
         text(
-            "SELECT column_name, data_type, is_nullable, column_key, column_type "
+            "SELECT column_name, data_type, is_nullable, column_key, column_type, "
+            "column_default, extra "
             "FROM information_schema.columns "
             "WHERE table_schema = DATABASE() AND table_name = :t "
             "ORDER BY ordinal_position"
@@ -98,9 +105,62 @@ def _columns(db: Session, table: str) -> list[dict]:
             "nullable": r[2] == "YES",
             "is_key": r[3] in ("PRI", "MUL", "UNI"),
             "column_type": r[4] or "",
+            # A column the database fills for itself is not something a form has to ask for.
+            "has_default": r[5] is not None or bool(r[6]),
         }
         for r in rows
     ]
+
+
+# Filled in by the database, never by the form.
+GENERATED_COLUMNS = {"id", "created_at", "updated_at", "received_at", "submitted_at"}
+
+
+def _enum_options(column_type: str) -> list[str]:
+    """`enum('PENDING','APPROVED')` -> ['PENDING', 'APPROVED']."""
+    return re.findall(r"'([^']*)'", column_type or "")
+
+
+def _field(col: dict, table: str) -> dict | None:
+    """One input on the 'add a row' form, or None if the database fills this itself."""
+    name = col["name"]
+    if name in GENERATED_COLUMNS:
+        return None
+
+    t = col["data_type"]
+    if t == "point":
+        kind = "latlng"
+    elif t == "polygon":
+        kind = "bbox"
+    elif t == "enum":
+        kind = "enum"
+    elif col["column_type"].startswith("tinyint(1)"):
+        kind = "boolean"
+    elif t in ("int", "bigint", "smallint", "decimal", "numeric", "float", "double"):
+        kind = "number"
+    elif t == "date":
+        kind = "date"
+    elif t in ("datetime", "timestamp"):
+        kind = "datetime"
+    elif t == "text":
+        kind = "longtext"
+    else:
+        kind = "text"
+
+    length = None
+    match = re.search(r"\((\d+)\)", col["column_type"] or "")
+    if match and kind == "text":
+        length = int(match.group(1))
+
+    return {
+        "name": name,
+        "label": humanise(name),
+        "kind": kind,
+        "options": _enum_options(col["column_type"]) if kind == "enum" else [],
+        "required": not col["nullable"],
+        "max_length": length,
+        "help": COLUMN_NOTES.get(f"{table}.{name}"),
+    }
 
 
 def _readable_type(col: dict) -> str:
@@ -136,9 +196,9 @@ def _format(value, col: dict):
             return f"{float(lat):.4f}, {float(lng):.4f}"
         return "a mapped area" if inner.startswith("POLYGON") else inner
     if t == "char" and "(32)" in col["column_type"]:
-        # A 32-character identifier tells a reader nothing; the first characters are enough to
-        # see that two rows point at the same thing.
-        return f"{str(value)[:8]}…"
+        # Shown in full. Truncating it looked tidier but made the one thing an identifier is for
+        # - telling two rows apart, or matching one against another table - impossible.
+        return str(value)
     if col["column_type"].startswith("tinyint(1)"):
         return "Yes" if value else "No"
     if t == "enum":
@@ -208,6 +268,9 @@ def describe_table(table: str, db: Session = Depends(get_db)):
 
     masked = meta.get("masked", {})
     shown = [c for c in columns if c["name"] not in masked]
+    # Identifier last. It is real and worth showing in full, but leading every table with 32
+    # characters of hex buries the columns a reader came for.
+    shown.sort(key=lambda c: c["name"] == "id")
 
     # Masked columns are left out of the SELECT entirely - not fetched and then hidden.
     select_parts = []
@@ -265,4 +328,119 @@ def describe_table(table: str, db: Session = Depends(get_db)):
             for row in rows
         ],
         "withheld": [{"column": k, "reason": v} for k, v in masked.items()],
+        "editable": table in EDITABLE,
+        "blocked_reason": WRITE_BLOCKED.get(table, (None, None))[0],
+        "blocked_route": WRITE_BLOCKED.get(table, (None, None))[1],
+        "fields": [f for f in (_field(c, table) for c in columns) if f] if table in EDITABLE else [],
     }
+
+
+@router.post("/tables/{table}", status_code=status.HTTP_201_CREATED)
+def create_row(table: str, values: dict = Body(...), db: Session = Depends(get_db)):
+    """
+    Add a row, for the reference and configuration tables where that is a real thing to do.
+
+    Everything else is refused by name in `schema_catalogue.WRITE_BLOCKED`, and several of those
+    refusals are the system's own guarantees restated rather than caution: a challan has to be
+    issued by an officer to mean anything, and an audit log anyone can type into proves nothing.
+    The page shows the reason and, where the right route is a form elsewhere in the app, links it.
+    """
+    _require_development()
+
+    if table not in TABLES:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No such table")
+    if table not in EDITABLE:
+        reason = WRITE_BLOCKED.get(table, ("Rows are not added to this table by hand.", None))[0]
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=reason)
+
+    columns = {c["name"]: c for c in _columns(db, table)}
+    fields = {f["name"]: f for f in (_field(c, table) for c in columns.values()) if f}
+
+    assignments: dict[str, str] = {"id": ":p_id"}
+    params: dict[str, object] = {"p_id": uuid.uuid4().hex}
+
+    for name, field in fields.items():
+        raw = values.get(name)
+        blank = raw is None or (isinstance(raw, str) and not raw.strip())
+
+        if blank:
+            if field["required"] and columns[name].get("has_default") is not True:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"{field['label']} is required",
+                )
+            continue
+
+        if field["kind"] == "enum" and raw not in field["options"]:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"{field['label']} must be one of: {', '.join(field['options'])}",
+            )
+
+        if field["kind"] == "latlng":
+            # Built here rather than taken as text: the caller supplies two numbers and cannot
+            # get the latitude-first axis order wrong, because they never write the WKT.
+            try:
+                lat, lng = float(raw["lat"]), float(raw["lng"])
+            except (TypeError, KeyError, ValueError):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"{field['label']} needs a latitude and a longitude",
+                )
+            assignments[name] = f"ST_GeomFromText(:p_{name}, 4326)"
+            params[f"p_{name}"] = f"POINT({lat} {lng})"
+            continue
+
+        if field["kind"] == "bbox":
+            try:
+                lat1, lng1 = float(raw["lat1"]), float(raw["lng1"])
+                lat2, lng2 = float(raw["lat2"]), float(raw["lng2"])
+            except (TypeError, KeyError, ValueError):
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"{field['label']} needs two corners",
+                )
+            # A closed rectangle: MySQL rejects a ring that does not end where it began.
+            ring = (
+                f"{lat1} {lng1}, {lat1} {lng2}, {lat2} {lng2}, {lat2} {lng1}, {lat1} {lng1}"
+            )
+            assignments[name] = f"ST_GeomFromText(:p_{name}, 4326)"
+            params[f"p_{name}"] = f"POLYGON(({ring}))"
+            continue
+
+        if field["kind"] == "boolean":
+            params[f"p_{name}"] = 1 if raw in (True, "true", "1", 1, "yes") else 0
+        elif field["kind"] == "number":
+            try:
+                params[f"p_{name}"] = float(raw) if "." in str(raw) else int(raw)
+            except ValueError:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"{field['label']} must be a number",
+                )
+        else:
+            params[f"p_{name}"] = raw
+        assignments[name] = f":p_{name}"
+
+    column_sql = ", ".join(f"`{c}`" for c in assignments)
+    value_sql = ", ".join(assignments.values())
+
+    try:
+        db.execute(text(f"INSERT INTO `{table}` ({column_sql}) VALUES ({value_sql})"), params)
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        # Duplicate keys and failed foreign keys are the two a person filling a form will hit,
+        # and MySQL's own wording for them is not much help on its own.
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"The database refused this row: {str(exc.orig)[:200]}",
+        ) from exc
+    except OperationalError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"The database refused this row: {str(exc.orig)[:200]}",
+        ) from exc
+
+    return {"id": params["p_id"], "table": table}

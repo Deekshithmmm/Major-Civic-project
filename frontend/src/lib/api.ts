@@ -521,6 +521,27 @@ export type TableColumn = {
   is_identifier: boolean
 }
 
+export type FormFieldKind =
+  | 'text'
+  | 'longtext'
+  | 'number'
+  | 'boolean'
+  | 'enum'
+  | 'date'
+  | 'datetime'
+  | 'latlng'
+  | 'bbox'
+
+export type FormField = {
+  name: string
+  label: string
+  kind: FormFieldKind
+  options: string[]
+  required: boolean
+  max_length: number | null
+  help: string | null
+}
+
 export type TableDetail = {
   name: string
   label: string
@@ -533,4 +554,8 @@ export type TableDetail = {
   columns: TableColumn[]
   rows: (string | null)[][]
   withheld: { column: string; reason: string }[]
+  editable: boolean
+  blocked_reason: string | null
+  blocked_route: string | null
+  fields: FormField[]
 }

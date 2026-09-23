@@ -3,7 +3,14 @@ import { Link, useParams } from 'react-router-dom'
 
 import { EmptyState, ErrorNote, Loading } from '../components/Feedback'
 import { IconAlert, IconLedger, IconShield } from '../components/icons'
-import { ApiError, apiGet, type SchemaOverview, type TableDetail } from '../lib/api'
+import {
+  ApiError,
+  apiGet,
+  apiPost,
+  type FormField,
+  type SchemaOverview,
+  type TableDetail,
+} from '../lib/api'
 import { usePageTitle } from '../lib/usePageTitle'
 
 /**
@@ -129,13 +136,13 @@ function Overview() {
 function TableView({ name }: { name: string }) {
   const [data, setData] = useState<TableDetail | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [reloads, setReloads] = useState(0)
 
   useEffect(() => {
-    setData(null)
     apiGet<TableDetail>(`/api/schema/tables/${name}`)
       .then(setData)
       .catch(() => setError('Could not read that table.'))
-  }, [name])
+  }, [name, reloads])
 
   if (error) return <ErrorNote message={error} />
   if (!data) return <Loading rows={4} />
@@ -203,6 +210,23 @@ function TableView({ name }: { name: string }) {
         </section>
       )}
 
+      {data.editable && <CreateRow table={data} onCreated={() => setReloads((n) => n + 1)} />}
+
+      {!data.editable && data.blocked_reason && (
+        <section className="card border-slate-300 bg-slate-50">
+          <h2 className="font-semibold text-ink">Rows are not added here by hand</h2>
+          <p className="mt-1 text-sm text-slate-700">{data.blocked_reason}</p>
+          {data.blocked_route && (
+            <Link
+              to={data.blocked_route}
+              className="mt-2 inline-block text-sm font-medium text-civic-700 underline underline-offset-2"
+            >
+              Go to the right form →
+            </Link>
+          )}
+        </section>
+      )}
+
       <section>
         <h2 className="font-semibold text-ink">
           Real rows, from the running database
@@ -231,16 +255,17 @@ function TableView({ name }: { name: string }) {
               <tbody>
                 {data.rows.map((row, i) => (
                   <tr key={i} className="border-b border-slate-200 align-top">
-                    {row.map((cell, j) => (
-                      <td
-                        key={j}
-                        className={`py-2 pr-4 ${
-                          data.columns[j].is_identifier ? 'font-mono text-xs text-slate-500' : ''
-                        }`}
-                      >
-                        {cell ?? <span className="text-slate-400">—</span>}
-                      </td>
-                    ))}
+                    {row.map((cell, j) =>
+                      data.columns[j].is_identifier && cell ? (
+                        <td key={j} className="py-2 pr-4">
+                          <CopyableId value={cell} />
+                        </td>
+                      ) : (
+                        <td key={j} className="py-2 pr-4">
+                          {cell ?? <span className="text-slate-400">—</span>}
+                        </td>
+                      ),
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -248,6 +273,268 @@ function TableView({ name }: { name: string }) {
           </div>
         )}
       </section>
+    </div>
+  )
+}
+
+/**
+ * An identifier, shown in full and copyable.
+ *
+ * It used to be cut to eight characters and greyed out, which looked tidier and destroyed the
+ * only thing an identifier is for: telling two rows apart, or matching one against a row in
+ * another table. Full value, readable contrast, and one click to copy it.
+ */
+function CopyableId({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      title="Copy this identifier"
+      onClick={() => {
+        navigator.clipboard?.writeText(value).then(
+          () => {
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1200)
+          },
+          () => undefined,
+        )
+      }}
+      className="group inline-flex items-center gap-1.5 rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-xs text-slate-700 transition-colors hover:border-civic-300 hover:bg-civic-50"
+    >
+      <span className="break-all text-left">{value}</span>
+      <span aria-hidden className="shrink-0 text-slate-400 group-hover:text-civic-600">
+        {copied ? '✓' : '⧉'}
+      </span>
+      <span className="sr-only">{copied ? 'Copied' : 'Copy'}</span>
+    </button>
+  )
+}
+
+/**
+ * Add a row, for the reference tables where that is a real thing to do — another category of
+ * problem, another police station, a different fine.
+ *
+ * Fields are built from the database's own columns, so an enum offers exactly the values the
+ * column accepts and a map point asks for two numbers rather than for the WKT string whose axis
+ * order is so easy to reverse. Anything the database fills in itself is not asked for at all.
+ */
+function CreateRow({ table, onCreated }: { table: TableDetail; onCreated: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [values, setValues] = useState<Record<string, unknown>>({})
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [created, setCreated] = useState<string | null>(null)
+
+  function set(field: string, value: unknown) {
+    setValues((prev) => ({ ...prev, [field]: value }))
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setBusy(true)
+    setError(null)
+    try {
+      const result = await apiPost<{ id: string }>(`/api/schema/tables/${table.name}`, values)
+      setCreated(result.id)
+      setValues({})
+      onCreated()
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'That row could not be saved.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <section className="card flex flex-wrap items-center justify-between gap-3 border-civic-200 bg-civic-50/50">
+        <div>
+          <h2 className="font-semibold text-ink">Add your own</h2>
+          <p className="text-sm text-slate-700">
+            This is reference data, so you can add to it here. Whatever you add is live
+            immediately — the rest of the app will use it.
+          </p>
+        </div>
+        <button type="button" className="btn-primary shrink-0" onClick={() => setOpen(true)}>
+          Add a row
+        </button>
+      </section>
+    )
+  }
+
+  return (
+    <section className="card border-civic-200">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-semibold text-ink">Add to {table.label}</h2>
+        <button type="button" className="btn-secondary" onClick={() => setOpen(false)}>
+          Cancel
+        </button>
+      </div>
+
+      {created && (
+        <p role="status" className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          Saved. It is in the database now and the rest of the app can already use it.
+          <span className="mt-1 block font-mono text-xs">{created}</span>
+        </p>
+      )}
+      {error && (
+        <p className="mt-3">
+          <ErrorNote message={error} />
+        </p>
+      )}
+
+      <form onSubmit={submit} className="mt-4 grid gap-4 sm:grid-cols-2">
+        {table.fields.map((f) => (
+          <Field key={f.name} field={f} value={values[f.name]} onChange={(v) => set(f.name, v)} />
+        ))}
+        <div className="sm:col-span-2">
+          <button type="submit" className="btn-primary" disabled={busy}>
+            {busy ? 'Saving…' : `Add to ${table.label}`}
+          </button>
+        </div>
+      </form>
+    </section>
+  )
+}
+
+function Field({
+  field,
+  value,
+  onChange,
+}: {
+  field: FormField
+  value: unknown
+  onChange: (v: unknown) => void
+}) {
+  const id = `f-${field.name}`
+  const label = (
+    <label className="field-label" htmlFor={id}>
+      {field.label}
+      {!field.required && <span className="font-normal text-slate-500"> (optional)</span>}
+    </label>
+  )
+  const help = field.help && <p className="mt-1 text-xs text-slate-600">{field.help}</p>
+
+  if (field.kind === 'latlng') {
+    const v = (value ?? {}) as { lat?: string; lng?: string }
+    return (
+      <div className="sm:col-span-2">
+        {label}
+        <div className="flex flex-wrap gap-2">
+          <input
+            id={id}
+            className="field-input max-w-[12rem]"
+            placeholder="Latitude, e.g. 12.9855"
+            value={v.lat ?? ''}
+            onChange={(e) => onChange({ ...v, lat: e.target.value })}
+          />
+          <input
+            className="field-input max-w-[12rem]"
+            placeholder="Longitude, e.g. 77.5955"
+            value={v.lng ?? ''}
+            onChange={(e) => onChange({ ...v, lng: e.target.value })}
+          />
+        </div>
+        <p className="mt-1 text-xs text-slate-600">
+          Two numbers, not a map string — that way the latitude and longitude cannot end up the
+          wrong way round.
+        </p>
+      </div>
+    )
+  }
+
+  if (field.kind === 'bbox') {
+    const v = (value ?? {}) as Record<string, string>
+    return (
+      <div className="sm:col-span-2">
+        {label}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {(['lat1', 'lng1', 'lat2', 'lng2'] as const).map((k) => (
+            <input
+              key={k}
+              className="field-input"
+              placeholder={k}
+              value={v[k] ?? ''}
+              onChange={(e) => onChange({ ...v, [k]: e.target.value })}
+            />
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-slate-600">
+          Two opposite corners of the area, as latitude and longitude.
+        </p>
+      </div>
+    )
+  }
+
+  if (field.kind === 'enum') {
+    return (
+      <div>
+        {label}
+        <select
+          id={id}
+          className="field-input"
+          value={(value as string) ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">—</option>
+          {field.options.map((o) => (
+            <option key={o} value={o}>
+              {o.replace(/_/g, ' ').toLowerCase()}
+            </option>
+          ))}
+        </select>
+        {help}
+      </div>
+    )
+  }
+
+  if (field.kind === 'boolean') {
+    return (
+      <div>
+        {label}
+        <label className="flex items-center gap-2 text-sm text-slate-700">
+          <input
+            id={id}
+            type="checkbox"
+            checked={Boolean(value)}
+            onChange={(e) => onChange(e.target.checked)}
+          />
+          Yes
+        </label>
+        {help}
+      </div>
+    )
+  }
+
+  if (field.kind === 'longtext') {
+    return (
+      <div className="sm:col-span-2">
+        {label}
+        <textarea
+          id={id}
+          rows={3}
+          className="field-input"
+          value={(value as string) ?? ''}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        {help}
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {label}
+      <input
+        id={id}
+        type={field.kind === 'number' ? 'number' : field.kind === 'date' ? 'date' : 'text'}
+        step={field.kind === 'number' ? 'any' : undefined}
+        maxLength={field.max_length ?? undefined}
+        className="field-input"
+        value={(value as string) ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {help}
     </div>
   )
 }
