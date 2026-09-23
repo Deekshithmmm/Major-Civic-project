@@ -159,6 +159,33 @@ the step that makes the audit log append-only. Re-run it after any migration tha
 Backend API docs: http://localhost:8000/docs
 Frontend: http://localhost:5173
 MinIO console: http://localhost:9001 (user/pass in `.env`)
+Database browser: http://localhost:8080
+
+### Opening the database
+
+`docker compose up -d` starts [Adminer](https://www.adminer.org/) alongside the database, so the
+schema can be opened and read without installing a client:
+
+<http://localhost:8080> — system **MySQL**, server **db**, database **civic_accountability**
+
+| Log in as | Password | To see |
+|---|---|---|
+| `root` | `civic_root_password` | Everything: all 24 tables, the triggers, the grants |
+| `civic` | `civic_dev_password` | What the application itself can reach — try `TRUNCATE audit_log` here and watch it be refused |
+
+Logging in as `civic` is the more interesting of the two. It is the account the application
+actually uses, so whatever it cannot do in Adminer is precisely what an attacker holding the
+application's credentials could not do either.
+
+Adminer is a full database administration console with no access control of its own beyond the
+MySQL login. It is fine on a laptop and must never be started anywhere reachable from a network
+you do not control.
+
+To browse from a terminal instead:
+
+```bash
+docker exec -it major-civic-project-db-1   mysql -uroot -pcivic_root_password civic_accountability
+```
 
 **Restart the Vite dev server after editing `tailwind.config.js`.** Tailwind reads its config
 once at startup, so a theme value added while the server is running produces a "class does not

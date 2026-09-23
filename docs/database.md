@@ -174,7 +174,13 @@ alembic revision --autogenerate -m "what changed"
 `alembic check` is the one to run before committing a model change. It reports drift between the
 models and the live database, and it is how the port was verified as complete.
 
-Inspect the running schema directly:
+Open it in a browser at <http://localhost:8080> (Adminer, started by `docker compose up -d`):
+system **MySQL**, server **db**, database **civic_accountability**. Log in as `root` /
+`civic_root_password` to see everything, or as `civic` / `civic_dev_password` to see exactly what
+the application can reach — trying `TRUNCATE audit_log` as `civic` is the quickest way to watch
+the append-only guarantee work.
+
+Or inspect the running schema from a terminal:
 
 ```bash
 docker exec -it major-civic-project-db-1 \

@@ -53,6 +53,24 @@ services:
     ports:
       - "6379:6379"
 
+  # A browser-based database client, at http://localhost:8080.
+  #
+  # Development only. It is a full database administration console with no access control of its
+  # own beyond the MySQL login, so it must never be started anywhere reachable from a network you
+  # do not control. It is in this file rather than in a developer's own tooling because "open the
+  # schema and look at it" is something a reviewer of this project will want to do without
+  # installing anything.
+  adminer:
+    image: adminer:5
+    ports:
+      - "8080:8080"
+    environment:
+      # Pre-fills the server field, so the only thing to type is the username and password.
+      ADMINER_DEFAULT_SERVER: db
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   db_data:
   minio_data:
