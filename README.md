@@ -18,9 +18,40 @@ All four modules are implemented, each with a citizen-facing flow and an officer
 | Shared plumbing (auth, DB, PostGIS jurisdictions, audit log, storage, media pipeline) | Built |
 | Module 3 — Civic infrastructure reporting | Built end to end |
 | Module 1 — Violation detection & enforcement assist | Built end to end, **except the CV pipeline**: there is no YOLOv8 detection and no ANPR/OCR, so cases arrive from citizen uploads or seed data and ANPR-path cases have no plate resolved until an officer supplies one. Officer review, challan issuance off a config-driven fine ladder, disputes and second-officer appeals all work. |
-| Module 2 — Anonymous corruption reporting | Built end to end: anonymous upload with browser-side coarse geohashing, routing-rules table, pre-publication moderation, public feed with status badges, tracking tokens. **Not built:** uploader-driven extra blur regions, audio muting, device-level rate limiting, takedown/right-of-reply, Grievance Officer workflow. |
+| Module 2 — Anonymous corruption reporting | Built end to end: anonymous upload with browser-side coarse geohashing, routing-rules table, pre-publication moderation, public feed with status badges, tracking tokens, device-fingerprint rate limiting, and the IT Rules 2021 grievance channel — published Grievance Officer, 24-hour acknowledgement and 15-day disposal clocks, takedown on an upheld grievance, moderated right of reply published under the allegation, and the platform's own compliance figures. **Not built:** uploader-driven extra blur regions, audio muting. |
 | Police station section | Built: station network with locations and nearest-station routing, General Diary, FIR register with station-issued numbers, Zero FIR transfer, case diary, chargesheet and closure — see below. |
 | Module 4 — Emergency reporting & evidence custody | Built: triage screen that leads with a 112 call, hard stop for any offence involving a minor, sealed evidence vault with chain of custody, case-number-gated investigating-officer access, and the public transparency layer (station response ledger, aggregate hotspot map, and a stage-gated case record that opens at chargesheet). **Not built:** storage-policy-level separation at the bucket layer, per-report encryption keys, auto-purge on a retention schedule, and the irreversible video blur that restricted categories would need (video is refused there instead). |
+
+### The grievance channel, takedown and right of reply
+
+A moderated feed of accusations makes this an intermediary, and Rule 3(2) of the IT Rules 2021
+attaches duties to that: publish a Grievance Officer, acknowledge a complaint within 24 hours,
+dispose of it within 15 days. All three are implemented, and the deadlines are columns rather
+than prose.
+
+The design turns on one thing: **a takedown is the only power here that makes a citizen's report
+disappear, so using it leaves marks in four places at once.**
+
+| Who | What they can see |
+|---|---|
+| The complainant | A numeric ticket, the status, the deadline, and the reason for the decision |
+| The anonymous uploader | That their report was withdrawn, and on what ground, through their tracking token |
+| The public | Counts of grievances received, deadlines missed, and how many were upheld |
+| An auditor | `audit_log` rows with `action = 'TAKEDOWN'`, naming the officer, on an append-only table |
+
+Two further choices worth naming:
+
+- **A reply is offered before removal is.** The response page leads with "publish a reply", which
+  leaves the report standing and shows the reader both sides, and offers removal second. Offering
+  only removal would make deletion the sole available answer to criticism.
+- **A reply is published as the office, never as the person.** The responding official's name and
+  email are collected so a moderator can verify the reply is genuine, and neither is ever
+  published. Module 2 never names the accused individual; publishing the name of the officer who
+  replies to an allegation about a single-post designation would name them by the back door.
+
+The acknowledgement is sent when the grievance is filed, not when an officer gets to it. If the
+mail gateway is down the row stays unacknowledged and the missed deadline shows up in the public
+figures, rather than being papered over with a timestamp for a mail that never went out.
 
 ### The police station section
 
@@ -150,7 +181,7 @@ With the stack running and freshly seeded:
 cd backend && python -m tests.smoke_test
 ```
 
-117 checks covering the guarantees that actually matter, across all four modules: EXIF
+148 checks covering the guarantees that actually matter, across all four modules: EXIF
 stripping verified on the stored photo, GPS/device tags and audio verified gone from the stored
 video, 50m duplicate clustering, proof-gated resolution, SLA breach + shareable card,
 officer-confirmed challans with the fine ladder read from config, appeal separation of duties,
@@ -161,12 +192,19 @@ suppresses cells below five and never carries a restricted category, the station
 chain from acknowledgement through FIR to chargesheet with a General Diary line for each step,
 and a case record that discloses the court only once a chargesheet is filed.
 
+The grievance checks assert the awkward cases rather than the happy path: a complaint about an
+unpublished report is a 404 and not a 403 that would confirm the report exists, a ticket lookup
+returns neither the complainant nor the complaint text, a published reply carries the office but
+not the official who wrote it, an upheld grievance both removes the report and tells the
+anonymous uploader why, and the takedown is read back out of `audit_log` in PostgreSQL rather
+than taken on the API's word.
+
 Role separation is asserted in both directions: a moderator is refused Module 1 identity data
 and every Module 4 route, and a municipal officer is refused Module 2 reports.
 
 It's safe to re-run without resetting — it picks a fresh map location each time so it never
 collides with its own earlier data, and skips the challan flow if a previous run already
-confirmed the one seeded ANPR case (113 passed / 1 skipped instead of 117). For the full set,
+confirmed the one seeded ANPR case (144 passed / 1 skipped instead of 148). For the full set,
 reset first:
 
 ```bash
@@ -286,10 +324,11 @@ Listed explicitly because several of these look done from the outside and are no
   handles anything real, swap in a proper detector behind `_blur_faces_in_frame()` and evaluate
   it on a representative test set. Treat the current blur as a placeholder, not a privacy
   guarantee.
-- **The UI has not been opened in a browser.** It typechecks, builds clean (88 modules, ~109 KB
-  gzipped) and every module transforms without error, and the API underneath is covered by the
-  smoke test — but no one has actually clicked through the report flow, the map, or the officer
-  dashboard. Do that before demoing.
+- **The UI has not been opened in a browser.** It typechecks, builds clean (101 modules, 144 KB
+  gzipped JS + 5.5 KB gzipped CSS) and every module transforms without error; the dev server's
+  compiled stylesheet has been fetched and checked for PostCSS errors, and the API underneath is
+  covered by the smoke test — but no one has actually clicked through the report flow, the map,
+  or the officer dashboard. Do that before demoing.
 - **Virus scanning is a no-op stub** (`virus_scan()` in `services/media_pipeline.py`).
 - **Uploads are processed inside the request**: about 2s for a browser-compressed photo (face
   detection) and under a second for most videos. A video whose codec can't be stream-copied into

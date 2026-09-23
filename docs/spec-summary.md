@@ -40,6 +40,9 @@ whoever owns the original PDF for a copy if you don't have one.
 - Public feed: moderation queue before visibility, status badges (Unverified / Under Investigation /
   Action Taken / Dismissed), never names the accused individual (department + designation only),
   Grievance Officer + takedown + right of reply per IT Rules 2021, device-level rate limiting.
+  **Built** — see `routers/module2_corruption.py`, `models/module2_grievance.py` and
+  `services/grievance.py`. The 24-hour and 15-day clocks of Rule 3(2)(a) are columns, and the
+  platform publishes its own compliance against them at `/api/corruption/compliance`.
 
 ## Module 3 — Civic infrastructure reporting (built)
 

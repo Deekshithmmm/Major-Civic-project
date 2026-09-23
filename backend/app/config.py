@@ -41,6 +41,17 @@ class Settings(BaseSettings):
     # Comma-separated. The frontend's origin only; never "*" while credentials are allowed.
     cors_origins: str = "http://localhost:5173"
 
+    # Rule 3(2)(a) of the IT Rules 2021 requires an intermediary to publish these details and to
+    # work to these two clocks. They are configuration, not constants, because the officer is a
+    # named post-holder who changes and the deadlines are statutory minimums a deployment may
+    # choose to beat. GET /api/corruption/grievance-officer serves them verbatim.
+    grievance_officer_name: str = "A. Rao"
+    grievance_officer_designation: str = "Grievance Officer"
+    grievance_officer_email: str = "grievance-officer@civic-accountability.example.in"
+    grievance_officer_address: str = "Municipal Corporation Annexe, Ward 12, Bengaluru 560001"
+    grievance_ack_hours: int = 24
+    grievance_resolve_days: int = 15
+
     env: str = "development"
 
     @property

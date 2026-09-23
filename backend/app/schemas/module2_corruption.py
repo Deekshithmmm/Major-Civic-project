@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel
 
 from app.models.module2_corruption import AccusedPartyType, ModerationStatus, PublicStatusBadge
+from app.schemas.module2_grievance import ReplyPublic
 
 
 class RoutingRuleResponse(BaseModel):
@@ -25,6 +26,11 @@ class ReportStatusResponse(BaseModel):
     moderation_status: ModerationStatus
     public_status_badge: PublicStatusBadge
     created_at: datetime
+    # An anonymous uploader has no inbox to notify, so the tracking token is the only way they
+    # can learn their report was withdrawn and on what ground. Withholding that would make the
+    # takedown power silent, which is the failure mode this module exists to prevent.
+    taken_down: bool = False
+    takedown_reason: str | None = None
 
 
 class FeedItemResponse(BaseModel):
@@ -42,6 +48,9 @@ class FeedItemResponse(BaseModel):
     created_at: datetime
     media_id: str
     media_kind: str
+    # Published responses from the body concerned, shown under the allegation itself rather than
+    # on a separate page nobody visits.
+    replies: list[ReplyPublic] = []
 
 
 class ModerationDecisionRequest(BaseModel):

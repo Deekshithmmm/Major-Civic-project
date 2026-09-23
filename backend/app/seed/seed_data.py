@@ -28,6 +28,13 @@ from app.models.module1_violations import (
     ViolationCaseStatus,
     ViolationClassConfig,
 )
+from app.models.module2_grievance import (
+    Grievance,
+    GrievanceGround,
+    GrievanceStatus,
+    ReplyStatus,
+    RightOfReply,
+)
 from app.models.module2_corruption import (
     AccusedPartyType,
     CorruptionReport,
@@ -52,6 +59,7 @@ from app.models.module3_infra import (
 from app.models.officials import ResponsibleDesk
 from app.models.station import CaseDiaryEntry, DiaryEntryType, FirRecord, FirStatus
 from app.models.users import User, UserRole
+from app.services.grievance import new_ticket
 from app.services.sla import compute_sla_deadline
 from app.services.station import investigation_deadline, log_diary, next_fir_number
 from app.services.tracking import new_tracking_code
@@ -682,6 +690,63 @@ def seed_sample_corruption_reports(db: Session) -> None:
     db.commit()
 
 
+def seed_grievance_demo(db: Session) -> None:
+    """
+    One published reply and one open grievance against the seeded published report.
+
+    Without these the grievance queue and the reply block under a feed card are both empty on a
+    fresh database, and the two features that answer "what happens when the platform gets it
+    wrong" are invisible in a demo.
+    """
+    if db.execute(select(RightOfReply)).scalars().first():
+        return
+
+    report = db.execute(
+        select(CorruptionReport).where(
+            CorruptionReport.moderation_status == ModerationStatus.APPROVED,
+            CorruptionReport.taken_down_at.is_(None),
+        )
+    ).scalars().first()
+    if report is None:
+        return
+
+    db.add(
+        RightOfReply(
+            report_id=report.id,
+            body=(
+                "The Department has referred this to its Vigilance Cell. The tender in question "
+                "was awarded under open bidding, reference RWD/2026/114, and the file is with the "
+                "internal auditor. We will publish the audit finding when it is received."
+            ),
+            author_department=report.accused_department,
+            author_designation="Executive Engineer",
+            author_name="Synthetic Seed Official",
+            author_contact_email="ee@roads-works.example.gov.in",
+            status=ReplyStatus.PUBLISHED,
+            published_at=datetime.now(timezone.utc),
+        )
+    )
+
+    db.add(
+        Grievance(
+            ticket=new_ticket(db),
+            report_id=report.id,
+            ground=GrievanceGround.FACTUALLY_INCORRECT,
+            body=(
+                "The report states the work was never carried out. Completion certificate "
+                "RWD/CC/2026/88 was issued on site and is available on request. We ask that the "
+                "report be corrected or withdrawn."
+            ),
+            complainant_name="Synthetic Seed Complainant",
+            complainant_email="grievance-demo@example.gov.in",
+            complainant_designation="Executive Engineer",
+            status=GrievanceStatus.ACKNOWLEDGED,
+            acknowledged_at=datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+
+
 def main() -> None:
     # These accounts share a password that is printed below and documented in the README. Seeding
     # a real environment would hand anyone who read either an officer login.
@@ -715,6 +780,7 @@ def main() -> None:
         seed_sample_infra_issues(db, wards, categories)
         seed_sample_violation_cases(db, wards, classes, vehicles)
         seed_sample_corruption_reports(db)
+        seed_grievance_demo(db)
         print("Seed complete.")
         print(f"\nDemo official accounts (password: {DEV_PASSWORD}):")
         for email, _, role, _, station_code in USERS:

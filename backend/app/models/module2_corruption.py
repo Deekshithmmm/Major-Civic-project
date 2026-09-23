@@ -84,6 +84,14 @@ class CorruptionReport(Base):
 
     tracking_token: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
 
+    # Set when a grievance is upheld (models/module2_grievance.py). A takedown is a separate axis
+    # from moderation_status on purpose: the row keeps saying it was once APPROVED, so "published
+    # then withdrawn" stays distinguishable from "never passed moderation". The uploader can read
+    # the reason off their tracking token - their report vanishing without explanation would be
+    # the platform doing quietly what it exists to expose.
+    taken_down_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    takedown_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     # Explicitly absent, on purpose: uploader_id, ip_address, device_account, phone, email.

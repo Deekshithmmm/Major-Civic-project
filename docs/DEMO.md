@@ -1,6 +1,6 @@
 # Demo script
 
-A ten-minute walkthrough that shows the whole system and, more importantly, shows *why* it is
+A twelve-minute walkthrough that shows the whole system and, more importantly, shows *why* it is
 built this way. Every refusal below is deliberate — they are the parts worth demonstrating.
 
 ## Before you start
@@ -78,7 +78,49 @@ Submit, then log in as `moderator@demo.city` → **Moderation**. Nothing reaches
 moderator approves it. Approve it, and note the badge: **Unverified allegation**. The platform
 never names an individual — department and designation only.
 
-## 5. The hard stop (1 min)
+## 5. When the platform gets it wrong (2 min)
+
+This is the section that answers the obvious objection: *you have built a machine for publishing
+accusations — what happens to the person it is wrong about?*
+
+Stay on the feed. The seeded **Roads & Works Department** report already carries a **response from
+the office named**, quoted under the allegation. The reader sees the accusation and the answer in
+the same place. Note the attribution: the *Executive Engineer*, not a person. The official who
+wrote it gave their name and work email so a moderator could verify the reply was genuine, and
+neither is published.
+
+Click **Reply or object**. Two tabs, in this order deliberately:
+
+- **Publish a reply** — the report stays up, the answer goes underneath it.
+- **Ask for removal** — the grievance channel.
+
+Offering only the second would make deletion the only available response to criticism.
+
+Open **Grievance Officer** (also linked from the footer of every page). Rule 3(2)(a) of the IT
+Rules 2021 requires this page to exist: a named officer, an address, and two deadlines —
+**acknowledge within 24 hours, decide within 15 days**. Scroll to **Our own record**: the same
+counters this platform points at a police station, pointed at itself.
+
+File a grievance. You get an **8-digit ticket** and the acknowledgement goes out immediately —
+not when an officer gets round to it, because the 24 hours start the moment it is filed.
+
+Look up the ticket. It shows the status, the deadline and the decision. It does **not** show the
+complaint text or the complainant's details, so guessing a ticket number harvests nothing.
+
+Now log in as `moderator@demo.city` → **Grievances**, and uphold it. Then show what one takedown
+left behind:
+
+| Where | What |
+|---|---|
+| The feed | The report is gone |
+| The uploader's tracking code | "Withdrawn", and the reason why |
+| The compliance figures | Upheld: 1 |
+| `audit_log` in psql | A `TAKEDOWN` row naming the moderator, on a table that rejects UPDATE, DELETE and TRUNCATE |
+
+The line to say out loud: **the power to remove a citizen's report is the most dangerous thing in
+this system, so it is the most heavily recorded.** Nobody can use it quietly.
+
+## 6. The hard stop (1 min)
 
 **Emergency.**
 
@@ -92,7 +134,7 @@ The upload field disappears and is replaced by 1098, 112 and the CCPWC portal. T
 API too — the server refuses with a file attached. Accepting that upload, even to forward it, is
 itself an offence under POCSO and IT Act 67B.
 
-## 6. What replaces the video feed (2 min)
+## 7. What replaces the video feed (2 min)
 
 **Accountability.**
 
@@ -109,7 +151,7 @@ itself an offence under POCSO and IT Act 67B.
 > within a day, and the case is still prosecutable because nothing was published that the defence
 > can use.
 
-## 7. Inside the police station (2 min)
+## 8. Inside the police station (2 min)
 
 **Police stations** → click one. Contact details, location, and how it responds to what it
 receives.
@@ -126,7 +168,7 @@ Log in as `sho.lakeview@demo.city` → **Police station** tab.
 
 Log in as `sho.market@demo.city` to show the scoping: a different station, a different queue.
 
-## 8. If a reviewer pushes (closing)
+## 9. If a reviewer pushes (closing)
 
 Run the smoke test on screen:
 
@@ -134,9 +176,10 @@ Run the smoke test on screen:
 cd backend && python -m tests.smoke_test
 ```
 
-117 checks. It does not assert that buttons work — it asserts the guarantees: GPS metadata
+148 checks. It does not assert that buttons work — it asserts the guarantees: GPS metadata
 verified gone from the stored file, a moderator refused Module 4 on every route, evidence refused
-without a case number, the hotspot map suppressing small cells.
+without a case number, the hotspot map suppressing small cells, and a takedown that cannot happen
+without leaving a row in an append-only audit table.
 
 Then, in `psql`, try to tamper with the record:
 

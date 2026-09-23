@@ -31,6 +31,12 @@ class AuditAction(str, enum.Enum):
     CHALLAN_ISSUED = "challan_issued"
     STATUS_CHANGE = "status_change"
     LOGIN = "login"
+    # Module 2 grievance workflow (IT Rules 2021). Distinct values rather than a STATUS_CHANGE
+    # with explanatory text, because "what did we remove and on whose say-so" is the first
+    # question anyone auditing a takedown power asks, and it should be a WHERE clause.
+    GRIEVANCE_DECISION = "grievance_decision"
+    TAKEDOWN = "takedown"
+    REPLY_PUBLISHED = "reply_published"
 
 
 class AuditLogEntry(Base):

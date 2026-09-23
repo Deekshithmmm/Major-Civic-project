@@ -95,6 +95,33 @@ def media_info(data: bytes) -> str:
     return subprocess.run([FFMPEG, "-hide_banner", "-i", str(path)], capture_output=True, text=True).stderr
 
 
+def audit_rows_for(action: str, entity_id: str) -> int | None:
+    """
+    Count audit rows straight out of PostgreSQL rather than through an API.
+
+    The claim being tested is that a takedown leaves a permanent mark in a table nothing can
+    edit, so asking the application whether it logged something would be testing the wrong
+    thing. Returns None when psql is not reachable from wherever this is running, and the caller
+    skips rather than fails.
+    """
+    try:
+        result = subprocess.run(
+            [
+                "docker", "exec", "major-civic-project-db-1",
+                "psql", "-U", "civic", "-d", "civic_accountability", "-tAc",
+                f"SELECT count(*) FROM audit_log WHERE action = '{action}' AND entity_id = '{entity_id}'",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=20,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    return int(result.stdout.strip() or 0)
+
+
 def main() -> int:
     print("\n== Module 3: citizen report flow ==")
 
@@ -340,6 +367,211 @@ def main() -> int:
         )
         after = requests.get(f"{BASE}/api/corruption/feed", timeout=10).json()
         check("approved report now appears on the feed", any(f["id"] == new_item["id"] for f in after))
+
+    print("\n== Module 2: grievance channel, right of reply and takedown (IT Rules 2021) ==")
+    officer = requests.get(f"{BASE}/api/corruption/grievance-officer", timeout=10)
+    check("Grievance Officer details are published, as Rule 3(2)(a) requires", officer.status_code == 200)
+    officer_body = officer.json() if officer.status_code == 200 else {}
+    check(
+        "the published details carry a name, an address and a contact",
+        all(officer_body.get(k) for k in ("name", "designation", "email", "address")),
+        str(officer_body),
+    )
+    check(
+        "the two statutory clocks are published with them (24h / 15d)",
+        officer_body.get("acknowledgement_deadline_hours") == 24
+        and officer_body.get("resolution_deadline_days") == 15,
+        str(officer_body),
+    )
+
+    unknown_target = requests.post(
+        f"{BASE}/api/corruption/grievances",
+        json={
+            "report_id": str(uuid.uuid4()),
+            "ground": "defamatory",
+            "body": "A complaint about a report that is not published anywhere.",
+            "complainant_name": "Test Complainant",
+            "complainant_email": "complainant@example.gov.in",
+        },
+        timeout=10,
+    )
+    check(
+        "a grievance about an unpublished report is a 404, not a 403 that confirms it exists",
+        unknown_target.status_code == 404,
+        str(unknown_target.status_code),
+    )
+
+    if new_item:
+        reply = requests.post(
+            f"{BASE}/api/corruption/replies",
+            json={
+                "report_id": new_item["id"],
+                "body": "The department rejects this allegation and has ordered an internal inquiry.",
+                "author_department": "Smoke Test Department",
+                "author_designation": "Deputy Commissioner",
+                "author_name": "R. Iyer",
+                "author_contact_email": "dc@smoke-test-dept.gov.in",
+            },
+            timeout=10,
+        )
+        check("the accused body can file a reply without an account", reply.status_code == 201, reply.text[:200])
+        check(
+            "a reply is held for verification, not published on arrival",
+            reply.status_code != 201 or reply.json()["status"] == "pending",
+            reply.text[:200],
+        )
+
+        feed_pre_reply = requests.get(f"{BASE}/api/corruption/feed", timeout=10).json()
+        item_pre = next((f for f in feed_pre_reply if f["id"] == new_item["id"]), {})
+        check("an unverified reply does not appear under the allegation", item_pre.get("replies") == [])
+
+        reply_queue = requests.get(f"{BASE}/api/corruption/replies/queue", headers=mod_h, timeout=10).json()
+        queued_reply = next((r for r in reply_queue if r["report_id"] == new_item["id"]), None)
+        check("the reply reaches the moderator queue for verification", queued_reply is not None)
+        check(
+            "the queue gives the moderator a contact to verify the reply against",
+            queued_reply is None or queued_reply["author_contact_email"] == "dc@smoke-test-dept.gov.in",
+        )
+
+        if queued_reply:
+            published = requests.post(
+                f"{BASE}/api/corruption/replies/{queued_reply['id']}/decide",
+                headers=mod_h,
+                json={"publish": True},
+                timeout=10,
+            )
+            check("moderator can publish a verified reply", published.status_code == 200, published.text[:200])
+
+            feed_post_reply = requests.get(f"{BASE}/api/corruption/feed", timeout=10).json()
+            item_post = next((f for f in feed_post_reply if f["id"] == new_item["id"]), {})
+            replies_shown = item_post.get("replies", [])
+            check("the reply is published under the allegation itself", len(replies_shown) == 1, str(replies_shown))
+            check(
+                "the published reply is attributed to the office, never to the official who wrote it",
+                not replies_shown
+                or (
+                    replies_shown[0]["author_designation"] == "Deputy Commissioner"
+                    and "author_name" not in replies_shown[0]
+                    and "author_contact_email" not in replies_shown[0]
+                ),
+                str(replies_shown[:1]),
+            )
+
+        grievance = requests.post(
+            f"{BASE}/api/corruption/grievances",
+            json={
+                "report_id": new_item["id"],
+                "ground": "factually_incorrect",
+                "body": "The transaction shown was a lawful fee receipted under reference 44/2026.",
+                "complainant_name": "Test Complainant",
+                "complainant_email": "complainant@example.gov.in",
+                "complainant_designation": "Deputy Commissioner",
+            },
+            timeout=10,
+        )
+        check("anyone can file a grievance without an account", grievance.status_code == 201, grievance.text[:200])
+        g_body = grievance.json() if grievance.status_code == 201 else {}
+        ticket = g_body.get("ticket", "")
+        check("the ticket is an 8-digit number with no leading zero", bool(re.fullmatch(r"[1-9]\d{7}", ticket)), ticket)
+        check(
+            "the 24-hour acknowledgement goes out on receipt, not when an officer gets to it",
+            g_body.get("acknowledged") is True,
+            str(g_body),
+        )
+
+        ticket_view = requests.get(f"{BASE}/api/corruption/grievances/track/{ticket}", timeout=10)
+        tv = ticket_view.json() if ticket_view.status_code == 200 else {}
+        check("the ticket resolves to a status", tv.get("status") == "acknowledged", str(tv))
+        check(
+            "a ticket lookup leaks neither the complainant nor the complaint text",
+            not {"complainant_name", "complainant_email", "body"} & set(tv),
+            str(sorted(tv)),
+        )
+        check("the 15-day disposal deadline is stated to the complainant", bool(tv.get("resolution_due_by")))
+
+        anon_queue = requests.get(f"{BASE}/api/corruption/grievances/queue", timeout=10)
+        check("the grievance queue is closed to anonymous callers", anon_queue.status_code == 401, str(anon_queue.status_code))
+
+        queue = requests.get(f"{BASE}/api/corruption/grievances/queue", headers=mod_h, timeout=10).json()
+        queued = next((g for g in queue if g["ticket"] == ticket), None)
+        check("the grievance reaches the moderator queue", queued is not None)
+
+        if queued:
+            decided = requests.post(
+                f"{BASE}/api/corruption/grievances/{queued['id']}/decide",
+                headers=mod_h,
+                json={
+                    "uphold": True,
+                    "note": "Upheld: the receipt reference was verified with the department.",
+                },
+                timeout=10,
+            )
+            check("a moderator can uphold a grievance", decided.status_code == 200, decided.text[:200])
+
+            gone = requests.get(f"{BASE}/api/corruption/feed", timeout=10).json()
+            check(
+                "an upheld grievance takes the report off the public feed",
+                all(f["id"] != new_item["id"] for f in gone),
+            )
+
+            withdrawn = requests.get(f"{BASE}/api/corruption/reports/track/{corr_token}", timeout=10).json()
+            check("the anonymous uploader is told their report was withdrawn", withdrawn.get("taken_down") is True, str(withdrawn))
+            check(
+                "and is told on what ground, so the takedown is not silent",
+                "receipt reference was verified" in (withdrawn.get("takedown_reason") or ""),
+                str(withdrawn.get("takedown_reason")),
+            )
+
+            again = requests.post(
+                f"{BASE}/api/corruption/grievances/{queued['id']}/decide",
+                headers=mod_h,
+                json={"uphold": False, "note": "Attempting to re-decide a disposed grievance."},
+                timeout=10,
+            )
+            check("a disposed grievance cannot be decided twice", again.status_code == 409, str(again.status_code))
+
+            late_reply = requests.post(
+                f"{BASE}/api/corruption/replies",
+                json={
+                    "report_id": new_item["id"],
+                    "body": "A reply filed after the report was already withdrawn from publication.",
+                    "author_department": "Smoke Test Department",
+                    "author_designation": "Deputy Commissioner",
+                    "author_name": "R. Iyer",
+                    "author_contact_email": "dc@smoke-test-dept.gov.in",
+                },
+                timeout=10,
+            )
+            check(
+                "a withdrawn report accepts no further replies",
+                late_reply.status_code == 404,
+                str(late_reply.status_code),
+            )
+
+            takedown_rows = audit_rows_for("TAKEDOWN", new_item["id"])
+            if takedown_rows is None:
+                skip("the takedown is written to the append-only audit log", "psql not reachable from here")
+            else:
+                check(
+                    "the takedown is written to the append-only audit log, naming the officer",
+                    takedown_rows >= 1,
+                    f"rows: {takedown_rows}",
+                )
+
+    compliance = requests.get(f"{BASE}/api/corruption/compliance", timeout=10)
+    comp = compliance.json() if compliance.status_code == 200 else {}
+    check("the platform publishes its own grievance compliance", compliance.status_code == 200)
+    check("compliance counts grievances received", comp.get("grievances_received", 0) >= 1, str(comp))
+    check(
+        "compliance reports against both statutory deadlines",
+        comp.get("acknowledgement_deadline_hours") == 24 and comp.get("resolution_deadline_days") == 15,
+        str(comp),
+    )
+    check(
+        "no complaint text or complainant appears in the public figures",
+        all(isinstance(v, (int, float, type(None))) for v in comp.values()),
+        str(comp),
+    )
 
     print("\n== Module 4: hard stop, evidence custody and the transparency layer ==")
     hard_stop = requests.post(

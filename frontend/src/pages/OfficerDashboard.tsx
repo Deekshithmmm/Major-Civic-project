@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 import EmergencyPanel from '../components/officer/EmergencyPanel'
+import GrievancePanel from '../components/officer/GrievancePanel'
 import InfraQueue from '../components/officer/InfraQueue'
 import ModerationQueue from '../components/officer/ModerationQueue'
 import StationPanel from '../components/officer/StationPanel'
@@ -10,7 +11,7 @@ import ViolationQueue from '../components/officer/ViolationQueue'
 import { apiGet, clearToken, getToken, type CurrentUser } from '../lib/api'
 import { useI18n } from '../lib/i18n'
 
-type TabId = 'infra' | 'violations' | 'moderation' | 'vigilance' | 'station' | 'emergency'
+type TabId = 'infra' | 'violations' | 'moderation' | 'grievances' | 'vigilance' | 'station' | 'emergency'
 
 /**
  * Which panels a role may open. This mirrors the API's own role checks rather than replacing
@@ -26,6 +27,10 @@ const TABS: { id: TabId; label: string; roles: string[] }[] = [
   },
   { id: 'violations', label: 'Violations', roles: ['municipal_officer', 'admin'] },
   { id: 'moderation', label: 'Moderation', roles: ['moderator', 'admin'] },
+  // Takedown and right of reply. Same roles as moderation because it is the same duty of
+  // care, but its own tab: a queue with a statutory deadline should not be a sub-section of
+  // one without.
+  { id: 'grievances', label: 'Grievances', roles: ['moderator', 'admin'] },
   { id: 'vigilance', label: 'Vigilance', roles: ['vigilance_officer', 'admin'] },
   // The station's own work: queue, FIR register and General Diary.
   { id: 'station', label: 'Police station', roles: ['investigating_officer', 'admin'] },
@@ -106,6 +111,7 @@ export default function OfficerDashboard() {
       {tab === 'infra' && <InfraQueue />}
       {tab === 'violations' && <ViolationQueue />}
       {tab === 'moderation' && <ModerationQueue />}
+      {tab === 'grievances' && <GrievancePanel />}
       {tab === 'vigilance' && <VigilancePanel />}
       {tab === 'station' && <StationPanel />}
       {tab === 'emergency' && <EmergencyPanel />}

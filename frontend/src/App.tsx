@@ -6,11 +6,13 @@ import { IconShield } from './components/icons'
 import CorruptionFeed from './pages/CorruptionFeed'
 import CorruptionReport from './pages/CorruptionReport'
 import EmergencyTriage from './pages/EmergencyTriage'
+import GrievanceOfficerPage from './pages/GrievanceOfficer'
 import Home from './pages/Home'
 import IssueDetail from './pages/IssueDetail'
 import OfficerDashboard from './pages/OfficerDashboard'
 import OfficerLogin from './pages/OfficerLogin'
 import ReportIssue from './pages/ReportIssue'
+import RespondToReport from './pages/RespondToReport'
 import StationDetail from './pages/StationDetail'
 import Stations from './pages/Stations'
 import StatusBoard from './pages/StatusBoard'
@@ -128,6 +130,8 @@ export default function App() {
           {/* Module 2 */}
           <Route path="/corruption" element={<CorruptionFeed />} />
           <Route path="/corruption/report" element={<CorruptionReport />} />
+          <Route path="/corruption/grievance" element={<GrievanceOfficerPage />} />
+          <Route path="/corruption/respond/:reportId" element={<RespondToReport />} />
 
           {/* Module 1 */}
           <Route path="/violations/report" element={<ViolationReport />} />

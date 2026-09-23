@@ -231,6 +231,14 @@ export type RoutingRule = {
   notify_local_police: boolean
 }
 
+export type PublishedReply = {
+  id: string
+  body: string
+  author_department: string
+  author_designation: string
+  published_at: string | null
+}
+
 export type FeedItem = {
   id: string
   accused_department: string
@@ -241,6 +249,7 @@ export type FeedItem = {
   created_at: string
   media_id: string
   media_kind: MediaKind
+  replies: PublishedReply[]
 }
 
 export type CorruptionReportResult = {
@@ -253,6 +262,97 @@ export type CorruptionReportStatus = {
   moderation_status: ModerationStatus
   public_status_badge: PublicStatusBadge
   created_at: string
+  taken_down: boolean
+  takedown_reason: string | null
+}
+
+// --- Grievance channel and right of reply (IT Rules 2021) -------------------
+
+export type GrievanceGround =
+  | 'factually_incorrect'
+  | 'identifies_private_person'
+  | 'defamatory'
+  | 'sub_judice'
+  | 'not_my_department'
+  | 'other'
+
+export type GrievanceStatus = 'received' | 'acknowledged' | 'upheld' | 'rejected'
+
+export type GrievanceOfficer = {
+  name: string
+  designation: string
+  email: string
+  address: string
+  acknowledgement_deadline_hours: number
+  resolution_deadline_days: number
+}
+
+export type GrievanceResult = {
+  ticket: string
+  status: GrievanceStatus
+  acknowledged: boolean
+  resolution_due_by: string
+}
+
+export type GrievanceTicket = {
+  ticket: string
+  status: GrievanceStatus
+  ground: GrievanceGround
+  received_at: string
+  acknowledged_at: string | null
+  resolution_due_by: string
+  resolved_at: string | null
+  resolution_note: string | null
+  overdue: boolean
+}
+
+export type GrievanceQueueItem = {
+  id: string
+  ticket: string
+  report_id: string
+  ground: GrievanceGround
+  body: string
+  complainant_name: string
+  complainant_email: string
+  complainant_designation: string | null
+  status: GrievanceStatus
+  received_at: string
+  acknowledged_at: string | null
+  resolution_due_by: string
+  overdue: boolean
+  report_department: string
+  report_designation: string
+  report_taken_down: boolean
+}
+
+export type ReplyStatus = 'pending' | 'published' | 'rejected'
+
+export type ReplyQueueItem = {
+  id: string
+  report_id: string
+  body: string
+  author_department: string
+  author_designation: string
+  author_name: string
+  author_contact_email: string
+  status: ReplyStatus
+  submitted_at: string
+  report_department: string
+  report_designation: string
+}
+
+export type GrievanceCompliance = {
+  grievances_received: number
+  acknowledged_within_deadline: number
+  acknowledgement_deadline_missed: number
+  resolved_within_deadline: number
+  resolution_deadline_missed: number
+  open_past_deadline: number
+  upheld: number
+  rejected: number
+  on_time_resolution_rate: number | null
+  acknowledgement_deadline_hours: number
+  resolution_deadline_days: number
 }
 
 // --- Module 1 types ---------------------------------------------------------

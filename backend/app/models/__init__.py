@@ -10,6 +10,7 @@ from app.models import (  # noqa: F401
     jurisdiction,
     module1_violations,
     module2_corruption,
+    module2_grievance,
     module3_infra,
     module4_emergency,
     officials,

@@ -9,9 +9,9 @@ import { useI18n } from '../lib/i18n'
 import { usePageTitle } from '../lib/usePageTitle'
 
 /**
- * The vertical feed from spec 2.3, with the three things that make it survivable: nothing appears
- * until a moderator approves it, every item carries a status badge, and no individual is ever
- * named — department and designation only.
+ * The vertical feed from spec 2.3, with the four things that make it survivable: nothing appears
+ * until a moderator approves it, every item carries a status badge, no individual is ever named
+ * — department and designation only — and the office concerned can answer underneath it.
  */
 export default function CorruptionFeed() {
   const { t } = useI18n()
@@ -34,9 +34,14 @@ export default function CorruptionFeed() {
           <h1 className="text-xl font-semibold text-ink">{t('corrFeedTitle')}</h1>
           <p className="mt-1 text-sm text-slate-600">{t('corrFeedDisclaimer')}</p>
         </div>
-        <Link to="/corruption/report" className="btn-primary">
-          {t('corrReportTitle')}
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link to="/corruption/grievance" className="btn-secondary">
+            {t('grievanceTitle')}
+          </Link>
+          <Link to="/corruption/report" className="btn-primary">
+            {t('corrReportTitle')}
+          </Link>
+        </div>
       </div>
 
       {error && <ErrorNote message={error} />}
@@ -66,9 +71,32 @@ export default function CorruptionFeed() {
 
               {item.description && <p className="text-sm text-slate-700">{item.description}</p>}
 
-              <p className="text-xs text-slate-600">
-                Area {item.geohash} · {new Date(item.created_at).toLocaleDateString()}
-              </p>
+              {item.replies.map((reply) => (
+                <blockquote
+                  key={reply.id}
+                  className="rounded-lg border-l-4 border-civic-300 bg-civic-50/60 p-3"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-civic-800">
+                    {t('replyPublishedLabel')}
+                  </p>
+                  <p className="text-xs text-slate-700">
+                    {reply.author_designation}, {reply.author_department}
+                  </p>
+                  <p className="mt-1.5 text-sm text-slate-800">{reply.body}</p>
+                </blockquote>
+              ))}
+
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs text-slate-600">
+                  Area {item.geohash} · {new Date(item.created_at).toLocaleDateString()}
+                </p>
+                <Link
+                  to={`/corruption/respond/${item.id}`}
+                  className="text-xs font-medium text-civic-700 underline underline-offset-2"
+                >
+                  {t('grievanceRespondLink')} →
+                </Link>
+              </div>
             </li>
           ))}
         </ul>

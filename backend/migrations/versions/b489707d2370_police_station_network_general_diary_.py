@@ -133,4 +133,9 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_station_diary_entries_fir_id'), table_name='station_diary_entries')
     op.drop_index(op.f('ix_station_diary_entries_entry_date'), table_name='station_diary_entries')
     op.drop_table('station_diary_entries')
+
+    # drop_table leaves the enum types behind, and a later re-upgrade then fails with "type
+    # already exists". Autogenerate never emits these.
+    for enum_name in ('diary_entry_type', 'fir_status'):
+        op.execute(f"DROP TYPE IF EXISTS {enum_name}")
     # ### end Alembic commands ###
