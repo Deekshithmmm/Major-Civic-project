@@ -174,6 +174,9 @@ alembic revision --autogenerate -m "what changed"
 `alembic check` is the one to run before committing a model change. It reports drift between the
 models and the live database, and it is how the port was verified as complete.
 
+For a reader who does not work with databases, <http://localhost:5173/database> describes all of
+this in plain words with live rows — see the README. What follows is the developer's view.
+
 Open it in a browser at <http://localhost:8080> (Adminer, started by `docker compose up -d`):
 system **MySQL**, server **db**, database **civic_accountability**. Log in as `root` /
 `civic_root_password` to see everything, or as `civic` / `civic_dev_password` to see exactly what

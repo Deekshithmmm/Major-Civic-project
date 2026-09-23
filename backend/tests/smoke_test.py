@@ -12,6 +12,7 @@ resolution, role separation, and the append-only audit log.
 """
 
 import io
+import json
 import random
 import re
 import subprocess
@@ -866,6 +867,73 @@ def main() -> int:
     check(
         "the public ledger counts FIRs from the station register",
         any(row["firs_registered"] > 0 for row in ledger_after),
+    )
+
+    print("\n== The database view (/database) ==")
+    overview = requests.get(f"{BASE}/api/schema/tables", timeout=10)
+    check("the database view lists the tables", overview.status_code == 200, str(overview.status_code))
+    ov = overview.json() if overview.status_code == 200 else {}
+    check(
+        "every table in the database has a plain-English description",
+        ov.get("undocumented") == [],
+        f"undocumented: {ov.get('undocumented')}",
+    )
+    check("all 24 tables are covered", ov.get("table_count") == 24, str(ov.get("table_count")))
+
+    # The masking is the part that must never quietly break: this page is the one place where a
+    # reader is handed rows straight out of the database.
+    reports = requests.get(f"{BASE}/api/schema/tables/corruption_reports", timeout=10).json()
+    check(
+        "a whistleblower's tracking token never reaches the database view",
+        "tracking_token" not in {c["name"] for c in reports["columns"]},
+    )
+    check(
+        "and no row carries one either",
+        "tracking_token" in {w["column"] for w in reports["withheld"]},
+        str(reports["withheld"]),
+    )
+    check(
+        "the page says which columns it withheld and why",
+        all(w["reason"] for w in reports["withheld"]),
+    )
+    check(
+        "evidence file ids are not exposed by the database view",
+        "media_id" not in {c["name"] for c in reports["columns"]},
+    )
+
+    users_view = requests.get(f"{BASE}/api/schema/tables/users", timeout=10).json()
+    check(
+        "password hashes never reach the database view",
+        "hashed_password" not in {c["name"] for c in users_view["columns"]}
+        and "hashed_password" not in json.dumps(users_view["rows"]),
+    )
+
+    # The thing that makes it readable at all: an identifier resolved to the name of what it
+    # points at. Without this a reader sees a column of 32-character hex and learns nothing.
+    issues_view = requests.get(f"{BASE}/api/schema/tables/infrastructure_issues", timeout=10).json()
+    labels = [c["label"] for c in issues_view["columns"]]
+    ward_cell = None
+    if "Ward" in labels and issues_view["rows"]:
+        ward_cell = issues_view["rows"][0][labels.index("Ward")]
+    check(
+        "references are shown as names, not as identifiers",
+        bool(ward_cell) and "Ward" in str(ward_cell),
+        f"ward column showed {ward_cell!r}",
+    )
+    location_cell = None
+    if "Location" in labels and issues_view["rows"]:
+        location_cell = issues_view["rows"][0][labels.index("Location")]
+    check(
+        "map points are shown as readable coordinates",
+        bool(location_cell) and "," in str(location_cell) and "POINT" not in str(location_cell),
+        f"location column showed {location_cell!r}",
+    )
+
+    unknown_table = requests.get(f"{BASE}/api/schema/tables/mysql.user", timeout=10)
+    check(
+        "the database view cannot be pointed at a table it does not describe",
+        unknown_table.status_code == 404,
+        str(unknown_table.status_code),
     )
 
     print("\n== MySQL schema guarantees ==")

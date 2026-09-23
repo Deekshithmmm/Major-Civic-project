@@ -12,6 +12,7 @@ from app.routers import (
     module3_infra,
     module4_emergency,
     public,
+    schema_explorer,
     station,
 )
 from app.security import security_headers_middleware
@@ -53,6 +54,12 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Device-Id"],
 )
+
+# The database explorer is a readable window onto the database, which is the one thing the rest
+# of this codebase exists to prevent. It is registered only in development, and every handler in
+# it checks again - a guard that exists in two places survives one careless edit.
+if settings.is_development:
+    app.include_router(schema_explorer.router)
 
 app.include_router(auth.router)
 app.include_router(module3_infra.router)

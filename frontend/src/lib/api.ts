@@ -486,3 +486,51 @@ export type CaseDiaryEntry = {
   detail: string
   created_at: string
 }
+
+// --- The database view (development only) -----------------------------------
+
+export type TableSummary = {
+  name: string
+  label: string
+  row_is: string
+  row_count: number
+  append_only: boolean
+  has_masked: boolean
+}
+
+export type TableGroup = {
+  key: string
+  label: string
+  blurb: string
+  tables: TableSummary[]
+}
+
+export type SchemaOverview = {
+  groups: TableGroup[]
+  table_count: number
+  undocumented: string[]
+}
+
+export type TableColumn = {
+  name: string
+  label: string
+  means: string | null
+  type: string
+  optional: boolean
+  points_at: string | null
+  is_identifier: boolean
+}
+
+export type TableDetail = {
+  name: string
+  label: string
+  row_is: string
+  purpose: string
+  note: string | null
+  append_only: boolean
+  row_count: number
+  showing: number
+  columns: TableColumn[]
+  rows: (string | null)[][]
+  withheld: { column: string; reason: string }[]
+}

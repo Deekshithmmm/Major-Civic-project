@@ -5,6 +5,7 @@ import LanguagePicker from './components/LanguagePicker'
 import { IconShield } from './components/icons'
 import CorruptionFeed from './pages/CorruptionFeed'
 import CorruptionReport from './pages/CorruptionReport'
+import DatabaseExplorer from './pages/DatabaseExplorer'
 import EmergencyTriage from './pages/EmergencyTriage'
 import GrievanceOfficerPage from './pages/GrievanceOfficer'
 import Home from './pages/Home'
@@ -66,6 +67,7 @@ export default function App() {
       <NavItem to="/emergency" label={t('navEmergency')} onNavigate={() => setMenuOpen(false)} />
       <NavItem to="/stations" label={t('navStations')} onNavigate={() => setMenuOpen(false)} />
       <NavItem to="/transparency" label={t('navTransparency')} onNavigate={() => setMenuOpen(false)} />
+      <NavItem to="/database" label={t('navDatabase')} onNavigate={() => setMenuOpen(false)} />
       <NavItem to="/officer" label={t('navOfficer')} onNavigate={() => setMenuOpen(false)} />
     </>
   )
@@ -141,6 +143,11 @@ export default function App() {
           <Route path="/transparency" element={<Transparency />} />
           <Route path="/stations" element={<Stations />} />
           <Route path="/stations/:stationId" element={<StationDetail />} />
+
+          {/* What the system stores, in plain words. Development only - the API behind it
+              refuses to load otherwise and the page explains that rather than erroring. */}
+          <Route path="/database" element={<DatabaseExplorer />} />
+          <Route path="/database/:tableName" element={<DatabaseExplorer />} />
 
           {/* Officials */}
           <Route path="/officer" element={<OfficerLogin />} />

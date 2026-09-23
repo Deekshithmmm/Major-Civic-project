@@ -355,6 +355,7 @@ const STRINGS = {
     kn: 'ಪ್ರಕರಣದ ವಿವರಗಳಿಲ್ಲ, ಹೆಸರುಗಳಿಲ್ಲ, ದೃಶ್ಯಾವಳಿ ಇಲ್ಲ. ಲೈಂಗಿಕ ಅಪರಾಧ ಮತ್ತು ಮಕ್ಕಳ ಪ್ರಕರಣಗಳನ್ನು ಈ ಎಣಿಕೆಗಳಿಂದಲೂ ಹೊರಗಿಡಲಾಗಿದೆ.',
   },
   navTransparency: { en: 'Accountability', hi: 'जवाबदेही', kn: 'ಹೊಣೆಗಾರಿಕೆ' },
+  navDatabase: { en: 'Database', hi: 'डेटाबेस', kn: 'ಡೇಟಾಬೇಸ್' },
 
   violSubmitted: {
     en: 'Evidence received. It is now waiting for an officer to review it.',

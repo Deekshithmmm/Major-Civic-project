@@ -163,6 +163,23 @@ Database browser: http://localhost:8080
 
 ### Opening the database
 
+Two ways, for two different readers.
+
+**For anyone — <http://localhost:5173/database>.** The database described in plain words: what
+each table is for, what a single row means, what every column holds, and real rows from the
+running database with identifiers resolved to names, map points as coordinates and enum values as
+English. This is the one to show someone who does not read schemas. It is served only in
+development — the API behind it refuses to load otherwise, and the page says so rather than
+breaking.
+
+It withholds some columns on purpose and names them on the page with the reason. Whistleblowers'
+tracking codes, residents' phone numbers, evidence file ids and complainants' email addresses are
+never loaded by it at all — dropped from the query, not fetched and then hidden. A page built to
+make the database understandable must not become the one place where every protection in the
+system is bypassed.
+
+**For a developer — Adminer.**
+
 `docker compose up -d` starts [Adminer](https://www.adminer.org/) alongside the database, so the
 schema can be opened and read without installing a client:
 
